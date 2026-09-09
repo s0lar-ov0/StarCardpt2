@@ -35,8 +35,8 @@ namespace StarCard.UI
         [Tooltip("相邻两张卡片的竖直间距")]
         public float cardSpacing = 78f;
 
-        [Tooltip("第一张卡距容器顶部的距离")]
-        public float topPadding = 40f;
+        [Tooltip("第一张卡的中心距容器顶部的距离。容器已经在标题下方了，这里只需留半个卡高")]
+        public float topPadding = 42f;
 
         [Header("未归位方位的显示")]
         [Tooltip("勾上 = 未归位的方位也列出来（压暗），让玩家看到目标")]
@@ -157,12 +157,12 @@ namespace StarCard.UI
             }
         }
 
-        /// <summary>卡片竖排：锚定容器顶部，从上往下。</summary>
+        /// <summary>卡片竖排：锚定容器顶部，从上往下。pivot 用中心，topPadding 是第一张的中心位置。</summary>
         private void Place(BlessingCardView card, int index)
         {
             var rt = (RectTransform)card.transform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = new Vector2(0f, -(topPadding + index * cardSpacing));
         }
     }

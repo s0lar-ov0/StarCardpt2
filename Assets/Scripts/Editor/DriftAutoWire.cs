@@ -353,13 +353,31 @@ namespace StarCard.EditorTools
         /// </summary>
         private static void WireBlessingPanel(BlessingPanelView panel, Transform side)
         {
+            // 上下分区，两组卡片各占一段 —— 都铺满父物体的话会从同一个顶部开始排、叠在一起
+            float sideH = ((RectTransform)side).rect.height;
+            if (sideH < 100f) sideH = 756f;                 // 编辑器里 rect 偶尔还没算好
+
+            const float titleH = 34f;
+            float dirH = titleH + 4 * panel.cardSpacing + 14f;   // 方位祝福固定 4 张
+
             panel.directionRow = EnsureChild(side, "DirectionRow");
+            SetTopBand(panel.directionRow, 0f, dirH);
+
             panel.starRow = EnsureChild(side, "StarRow");
+            SetTopBand(panel.starRow, dirH + titleH, Mathf.Max(120f, sideH - dirH - titleH));
 
             // 复用原星语栏的两个文字物体当标题/提示，省得用户再拖
             panel.directionTitle = FindText(side, "BlessTitle");
             panel.starTitle = FindText(side, "LogTitle");
             panel.starEmptyHint = FindText(side, "BlessList");
+
+            // 标题各自钉到自己那一段的顶部
+            if (panel.directionTitle != null)
+                SetTopBand((RectTransform)panel.directionTitle.transform, 6f, titleH);
+            if (panel.starTitle != null)
+                SetTopBand((RectTransform)panel.starTitle.transform, dirH + 2f, titleH);
+            if (panel.starEmptyHint != null)
+                SetTopBand((RectTransform)panel.starEmptyHint.transform, dirH + titleH + 6f, 30f);
 
             // 旧的日志文本物体留着没用，隐藏掉
             var oldLog = Find(side, "LogList");
@@ -375,6 +393,16 @@ namespace StarCard.EditorTools
             }
 
             EditorUtility.SetDirty(panel);
+        }
+
+        /// <summary>把 rt 钉到父物体顶部的一段：距顶 offsetTop、高 height、左右铺满。</summary>
+        private static void SetTopBand(RectTransform rt, float offsetTop, float height)
+        {
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.offsetMin = new Vector2(6f, -(offsetTop + height));
+            rt.offsetMax = new Vector2(-6f, -offsetTop);
         }
 
         /// <summary>找不到就建一个铺满父物体的空 RectTransform。</summary>
