@@ -85,18 +85,37 @@ namespace StarCard.EditorTools
             AssetDatabase.SaveAssets();
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(boot.gameObject.scene);
 
-            bool allOk = cardPrefab != null && cellPrefab != null && cardEntry != null
-                         && blessEntry != null && blessCard != null;
-            if (allOk)
-                Debug.Log($"Prefab 提取完成，5 个都存在 {PrefabDir}/，引用已填回。场景里用来提 prefab 的临时物体已删除。\n" +
-                          "以后想改牌面/条目的样子，直接双击对应 prefab 编辑即可。", boot);
-            else
-                Debug.LogWarning($"Prefab 部分失败：卡牌={Ok(cardPrefab)} 阵型格={Ok(cellPrefab)} " +
-                                 $"牌条目={Ok(cardEntry)} 祝福条目={Ok(blessEntry)} 祝福卡片={Ok(blessCard)}。" +
-                                 "看上面的报错，修完再跑一次。", boot);
-        }
+            // 汇总要区分三种情况，否则重跑时会把"上次已提好"误报成失败：
+            //   本次提取成功 / 本次没提但资产已存在（重跑的正常情况）/ 真的缺失
+            var rows = new (string label, Object made, string asset)[]
+            {
+                ("卡牌",     cardPrefab, "StarCardView"),
+                ("阵型格",   cellPrefab, "FormationCell"),
+                ("牌条目",   cardEntry,  "RewardCardEntry"),
+                ("祝福条目", blessEntry, "RewardBlessingEntry"),
+                ("祝福卡片", blessCard,  "BlessingCard"),
+            };
 
-        private static string Ok(Object o) => o != null ? "✓" : "✗";
+            var sb = new System.Text.StringBuilder();
+            int missing = 0;
+            foreach (var r in rows)
+            {
+                string state;
+                if (r.made != null) state = "本次已生成";
+                else if (AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabDir}/{r.asset}.prefab") != null)
+                    state = "已存在(跳过)";
+                else { state = "缺失"; missing++; }
+                sb.Append($"{r.label}={state}  ");
+            }
+
+            if (missing == 0)
+                Debug.Log($"Prefab 就绪：{sb}\n5 个 prefab 都在 {PrefabDir}/ 下。" +
+                          "「已存在(跳过)」是正常的 —— 卡牌和阵型格是从场景物体提取的，" +
+                          "上次提完源物体就删掉了，重跑自然提不出第二次。\n" +
+                          "想改样式直接双击对应 prefab 编辑。", boot);
+            else
+                Debug.LogWarning($"有 {missing} 个 prefab 缺失：{sb}\n看上面的报错，修完再跑一次。", boot);
+        }
 
         /// <summary>
         /// 建 Assets/Prefabs 并让 AssetDatabase 认得它。
