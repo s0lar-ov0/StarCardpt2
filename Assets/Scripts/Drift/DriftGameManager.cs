@@ -43,15 +43,17 @@ namespace StarCard.Drift
 
         private readonly List<Core.StarCard> _pool = new();
         private readonly List<Core.StarCard> _hand = new();
-        private readonly List<BlessingId> _blessings = new();
+        private readonly List<OwnedBlessing> _blessings = new();
         private readonly HashSet<Direction> _homecomed = new();
 
         private readonly List<Core.StarCard> _pendingCards = new();
         private readonly List<BlessingId> _pendingBlessings = new();
+
+        /// <summary>本回合是否已经拿到"可升级一次"的机会（点满 3 个祝福后的粉色流星给的）。</summary>
+        private bool _upgradeOffered;
         private int _pendingBonusActions;
 
         private int _actionsSinceEvent;
-        private bool _freeMoveUsedThisTurn;
         private float _meteorTimeLeft;
         private float _meteorDuration;
         private float _reviewTimeLeft;
@@ -59,10 +61,13 @@ namespace StarCard.Drift
 
         public IReadOnlyList<Core.StarCard> Hand => _hand;
         public IReadOnlyList<Core.StarCard> Pool => _pool;
-        public IReadOnlyList<BlessingId> Blessings => _blessings;
+        public IReadOnlyList<OwnedBlessing> Blessings => _blessings;
         public IReadOnlyCollection<Direction> Homecomed => _homecomed;
         public IReadOnlyList<Core.StarCard> PendingCards => _pendingCards;
         public IReadOnlyList<BlessingId> PendingBlessings => _pendingBlessings;
+
+        /// <summary>本回合有一次祝福升级机会待使用（取舍界面要显示升级选项）。</summary>
+        public bool UpgradeOffered => _upgradeOffered;
         public int PendingBonusActions => _pendingBonusActions;
 
         public float MeteorTimeLeft => _meteorTimeLeft;
@@ -92,30 +97,84 @@ namespace StarCard.Drift
         public event Action BoardShuffled;
 
         // ---------- 派生数值 ----------
+        //
+        // 众星祝福的效果全部按等级生效：BlessingLevel(id) 没有该祝福时返回 0，
+        // 所以下面直接乘等级即可，不需要先判断有没有。
+
+        /// <summary>禄存：每回合行动次数额外 +等级</summary>
         public int ActionsPerTurn =>
-            config.baseActionsPerTurn
-            + (HasBlessing(BlessingId.YaoGuangStride) ? 1 : 0);
+            config.baseActionsPerTurn + BlessingLevel(BlessingId.LuCun);
 
-        public int MinLink =>
-            Mathf.Max(2, HasBlessing(BlessingId.TianXuanHeart) ? config.minLinkCount - 1 : config.minLinkCount);
+        /// <summary>廉贞：总回合数额外 +等级</summary>
+        public int MaxTurns =>
+            config.maxTurns <= 0 ? 0 : config.maxTurns + BlessingLevel(BlessingId.LianZhen);
 
-        public bool AllowRotation => HasBlessing(BlessingId.TianShuMirror);
+        public int MinLink => Mathf.Max(2, config.minLinkCount);
 
+        public bool AllowRotation => false;
+
+        /// <summary>文曲：随机事件所需的行动数额外 +等级</summary>
         public int EventInterval =>
-            Mathf.Max(1, config.eventIntervalBase - _homecomed.Count + (HasBlessing(BlessingId.KaiYangSteady) ? 1 : 0));
+            Mathf.Max(1, config.eventIntervalBase - _homecomed.Count + BlessingLevel(BlessingId.WenQu));
 
         public int ActionsUntilEvent => Mathf.Max(0, EventInterval - _actionsSinceEvent);
 
+        /// <summary>贪狼：流星定位限时 +2×等级 秒</summary>
         public float ComputeMeteorDuration() =>
-            config.meteorPhaseDuration
-            + (HasBlessing(BlessingId.YaoGuangGaze) ? 4f : 0f);
+            config.meteorPhaseDuration + 2f * BlessingLevel(BlessingId.TanLang);
 
-        public bool HasBlessing(BlessingId id) => _blessings.Contains(id);
+        /// <summary>破军：流星移动速度乘 (1 - 0.08×等级)</summary>
+        public float MeteorSpeedScale =>
+            Mathf.Max(0.1f, 1f - 0.08f * BlessingLevel(BlessingId.PoJun));
+
+        /// <summary>巨门：流星体型乘 (1 + 0.16×等级)</summary>
+        public float MeteorSizeScale =>
+            1f + 0.16f * BlessingLevel(BlessingId.JuMen);
+
+        /// <summary>武曲：每回合结束时不发生漂移的概率（20%×等级）</summary>
+        public float NoDriftChance =>
+            0.2f * BlessingLevel(BlessingId.WuQu);
+
+        /// <summary>持有该祝福的等级；没有则 0。</summary>
+        public int BlessingLevel(BlessingId id)
+        {
+            for (int i = 0; i < _blessings.Count; i++)
+                if (_blessings[i].Id == id) return _blessings[i].Level;
+            return 0;
+        }
+
+        public bool HasBlessing(BlessingId id) => BlessingLevel(id) > 0;
         public bool IsHomecomed(Direction dir) => _homecomed.Contains(dir);
 
-        public bool CanSpawnPinkMeteor =>
-            _blessings.Count + _pendingBlessings.Count < config.blessingLimit
-            && BlessingDatabase.AllDefs.Count > _blessings.Count + _pendingBlessings.Count;
+        /// <summary>
+        /// 还该不该刷小型粉色流星。
+        /// 未满 3 个 → 刷（点了随机抽一个新祝福）；
+        /// 已满 3 个 → 只要还有没满级的就继续刷（点了进升级选择）。
+        /// </summary>
+        public bool CanSpawnPinkMeteor
+        {
+            get
+            {
+                if (_blessings.Count < config.blessingLimit)
+                {
+                    if (_pendingBlessings.Count > 0) return false;      // 本回合已抽到一个
+                    return BlessingDatabase.AllDefs.Count > _blessings.Count;
+                }
+                return HasUpgradableBlessing && !_upgradeOffered;
+            }
+        }
+
+        /// <summary>持有的祝福里还有没满级的吗。</summary>
+        public bool HasUpgradableBlessing
+        {
+            get
+            {
+                for (int i = 0; i < _blessings.Count; i++)
+                    if (!_blessings[i].IsMaxed) return true;
+                return false;
+            }
+        }
+
 
         /// <summary>卡池里还剩哪些属性（中型流星只生成这些颜色）。</summary>
         public List<Element> AvailablePoolElements()
@@ -168,6 +227,7 @@ namespace StarCard.Drift
             _pendingCards.Clear();
             _pendingBlessings.Clear();
             _pendingBonusActions = 0;
+            _upgradeOffered = false;
             Score = 0;
             TurnIndex = 0;
             _actionsSinceEvent = 0;
@@ -188,7 +248,7 @@ namespace StarCard.Drift
 
         private void BeginTurn()
         {
-            if (config.maxTurns > 0 && TurnIndex >= config.maxTurns)
+            if (MaxTurns > 0 && TurnIndex >= MaxTurns)   // 廉贞会加总回合数
             {
                 FinishGame("时辰已尽");
                 return;
@@ -198,7 +258,7 @@ namespace StarCard.Drift
             _pendingCards.Clear();
             _pendingBlessings.Clear();
             _pendingBonusActions = 0;
-            _freeMoveUsedThisTurn = false;
+            _upgradeOffered = false;
 
             _meteorDuration = ComputeMeteorDuration();
             _meteorTimeLeft = _meteorDuration;
@@ -213,7 +273,7 @@ namespace StarCard.Drift
             if (Phase != DriftPhase.Meteor) return;
             _meteorTimeLeft = 0f;
 
-            if (_pendingCards.Count == 0 && _pendingBlessings.Count == 0)
+            if (_pendingCards.Count == 0 && _pendingBlessings.Count == 0 && !_upgradeOffered)
             {
                 if (_pendingBonusActions > 0) Log($"定位所得：行动次数 +{_pendingBonusActions}");
                 BeginBoardPhase();
@@ -226,7 +286,11 @@ namespace StarCard.Drift
         }
 
         /// <summary>取舍确认。keepCards / keepBlessings 与 PendingCards / PendingBlessings 一一对应。</summary>
-        public void ConfirmRewards(IList<bool> keepCards, IList<bool> keepBlessings)
+        /// <param name="upgradeIndex">
+        /// 要升级的祝福在 Blessings 里的下标；-1 = 不升级。
+        /// 只在本回合有升级机会（UpgradeOffered）时有意义，且**只能升一个、只升一级**。
+        /// </param>
+        public void ConfirmRewards(IList<bool> keepCards, IList<bool> keepBlessings, int upgradeIndex = -1)
         {
             if (Phase != DriftPhase.RewardPick) return;
 
@@ -254,9 +318,26 @@ namespace StarCard.Drift
                     Log($"众星祝福已满 {config.blessingLimit} 个，{BlessingDatabase.GetName(_pendingBlessings[i])} 散去。");
                     continue;
                 }
-                _blessings.Add(_pendingBlessings[i]);
-                Log($"获得众星祝福：{BlessingDatabase.GetName(_pendingBlessings[i])}");
+                _blessings.Add(new OwnedBlessing(_pendingBlessings[i], 1));
+                Log($"获得众星祝福：{BlessingDatabase.GetName(_pendingBlessings[i])}-1");
             }
+
+            // 升级：只能一个、只升一级、满级的不能升
+            if (_upgradeOffered && upgradeIndex >= 0 && upgradeIndex < _blessings.Count)
+            {
+                var ob = _blessings[upgradeIndex];
+                if (ob.IsMaxed)
+                {
+                    Log($"{ob.Name} 已达上限 {ob.MaxLevel} 级，无法升级。");
+                }
+                else
+                {
+                    ob.Level++;
+                    _blessings[upgradeIndex] = ob;
+                    Log($"众星祝福升级：{ob.Title}（{ob.Desc}）");
+                }
+            }
+            _upgradeOffered = false;
 
             _pendingCards.Clear();
             _pendingBlessings.Clear();
@@ -268,9 +349,6 @@ namespace StarCard.Drift
             ActionsLeft = ActionsPerTurn + _pendingBonusActions;
             _pendingBonusActions = 0;
             _actionsSinceEvent = 0;
-            _freeMoveUsedThisTurn = false;
-
-            if (HasBlessing(BlessingId.YuHengGather)) DrawToHand("玉衡-聚灵");
 
             SetPhase(DriftPhase.Board);
             Log($"棋盘操作开始：行动次数 {ActionsLeft}，每 {EventInterval} 次行动生变。");
@@ -303,13 +381,26 @@ namespace StarCard.Drift
 
                 case MeteorSize.Small:
                 {
-                    var exclude = new List<BlessingId>(_blessings);
-                    exclude.AddRange(_pendingBlessings);
-                    var id = BlessingDatabase.RollNew(_rng, exclude);
-                    if (id == BlessingId.None) return "众星祝福已尽";
-                    _pendingBlessings.Add(id);
+                    // 未满 3 个：随机抽一个新祝福，但**每回合只能新增一个**
+                    if (_blessings.Count < config.blessingLimit)
+                    {
+                        if (_pendingBlessings.Count > 0) return "本回合已有祝福待取";
+
+                        var exclude = new List<BlessingId>();
+                        for (int i = 0; i < _blessings.Count; i++) exclude.Add(_blessings[i].Id);
+                        var id = BlessingDatabase.RollNew(_rng, exclude);
+                        if (id == BlessingId.None) return "众星祝福已尽";
+                        _pendingBlessings.Add(id);
+                        Notify();
+                        return $"+{BlessingDatabase.GetName(id)}";
+                    }
+
+                    // 已满 3 个：进入升级流程，同样**每回合只能升一次**
+                    if (_upgradeOffered) return "本回合已可升级";
+                    if (!HasUpgradableBlessing) return "祝福均已满级";
+                    _upgradeOffered = true;
                     Notify();
-                    return $"+{BlessingDatabase.GetName(id)}";
+                    return "可升级一个祝福";
                 }
             }
             return null;
@@ -345,10 +436,8 @@ namespace StarCard.Drift
             var card = Board.GetCard(from);
             if (!Board.Move(from, to)) return false;
 
-            bool free = HasBlessing(BlessingId.TianQuanShift) && !_freeMoveUsedThisTurn;
-            if (free) _freeMoveUsedThisTurn = true;
-            Log($"移动 {Describe(card)}：{from} 到 {to}{(free ? "（天权·移山，免费）" : "")}");
-            ConsumeAction(free);
+            Log($"移动 {Describe(card)}：{from} 到 {to}");
+            ConsumeAction(false);
             return true;
         }
 
@@ -460,19 +549,11 @@ namespace StarCard.Drift
                 return;
             }
 
-            // 天玑·织星：每张 50% 概率不动
-            if (HasBlessing(BlessingId.TianJiWeave))
-                drifters.RemoveAll(_ => _rng.Next(2) == 0);
-
+            // 武曲：整回合按概率完全不漂移（20% × 等级）
+            float noDrift = NoDriftChance;
+            if (noDrift > 0f && _rng.NextDouble() < noDrift)
             {
-                Shuffle(drifters);
-                int keep = drifters.Count / 2;
-                drifters.RemoveRange(0, keep);
-            }
-
-            if (drifters.Count == 0)
-            {
-                Log($"{reason}：星力护持，无牌移动。");
+                Log($"{reason}：武曲镇星，本回合不发生漂移。");
                 return;
             }
 

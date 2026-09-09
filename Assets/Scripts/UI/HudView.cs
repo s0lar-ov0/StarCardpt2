@@ -110,7 +110,7 @@ namespace StarCard.UI
         {
             if (_game == null || _game.Board == null) return;
 
-            int maxTurns = _game.Config.maxTurns;
+            int maxTurns = _game.MaxTurns;   // 含廉贞加成
             if (turnText != null)
                 turnText.text = maxTurns > 0 ? $"回合 {_game.TurnIndex}/{maxTurns}" : $"回合 {_game.TurnIndex}";
             if (phaseText != null)

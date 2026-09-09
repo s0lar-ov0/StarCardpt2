@@ -3,46 +3,70 @@ using StarCard.Core;
 
 namespace StarCard.Drift
 {
-    /// <summary>众星祝福（小型粉色流星掉落，同时最多持有 3 个）。</summary>
+    /// <summary>众星祝福（点小型粉色流星获得，同时最多持有 3 个，各自可升级）。</summary>
     public enum BlessingId
     {
         None = 0,
-        YaoGuangStride,   // 摇光-续行
-        TianJiWeave,      // 天玑-织星
-        YuHengGather,     // 玉衡-聚灵
-        KaiYangSteady,    // 开阳-定星
-        TianXuanHeart,    // 天璇-连心
-        TianShuMirror,    // 天枢-镜位
-        TianQuanShift,    // 天权-移山
-        YaoGuangGaze      // 瑶光-延目
+        PoJun,      // 破军：流星移动速度减慢
+        TanLang,    // 贪狼：流星定位限时 +
+        JuMen,      // 巨门：流星体型变大
+        WenQu,      // 文曲：随机事件的触发间隔 +
+        WuQu,       // 武曲：回合结束有概率不漂移
+        LuCun,      // 禄存：每回合行动次数 +
+        LianZhen    // 廉贞：总回合数 +
     }
 
     public class BlessingDef
     {
         public BlessingId Id;
         public string Name;
-        public string Desc;
 
-        public BlessingDef(BlessingId id, string name, string desc)
+        /// <summary>等级上限。</summary>
+        public int MaxLevel;
+
+        private readonly string _descFormat;
+        private readonly System.Func<int, string> _valueAt;
+
+        /// <param name="descFormat">描述模板，{0} 替换成该等级的实际数值</param>
+        /// <param name="valueAt">等级 → 效果数值</param>
+        public BlessingDef(BlessingId id, string name, int maxLevel,
+                           string descFormat, System.Func<int, string> valueAt)
         {
             Id = id;
             Name = name;
-            Desc = desc;
+            MaxLevel = maxLevel;
+            _descFormat = descFormat;
+            _valueAt = valueAt;
         }
+
+        /// <summary>某等级下的完整描述。</summary>
+        public string DescAt(int level) => string.Format(_descFormat, _valueAt(level));
     }
 
     public static class BlessingDatabase
     {
         private static readonly List<BlessingDef> All = new()
         {
-            new BlessingDef(BlessingId.YaoGuangStride, "摇光-续行", "每回合行动次数 +1"),
-            new BlessingDef(BlessingId.TianJiWeave,    "天玑-织星", "漂移时，每张非连结牌有 50% 概率原地不动"),
-            new BlessingDef(BlessingId.YuHengGather,   "玉衡-聚灵", "每回合棋盘操作开始时，从卡池抽 1 张牌到手牌"),
-            new BlessingDef(BlessingId.KaiYangSteady,  "开阳-定星", "随机事件的触发间隔 +1 次行动"),
-            new BlessingDef(BlessingId.TianXuanHeart,  "天璇-连心", "连结所需的最少同方位牌数由 3 降为 2"),
-            new BlessingDef(BlessingId.TianShuMirror,  "天枢-镜位", "阵型模板额外允许 180° 旋转摆放"),
-            new BlessingDef(BlessingId.TianQuanShift,  "天权-移山", "每回合首次“移动”行动不消耗行动次数"),
-            new BlessingDef(BlessingId.YaoGuangGaze,   "瑶光-延目", "流星定位阶段时长 +4 秒")
+            new BlessingDef(BlessingId.PoJun,    "破军", 5,
+                "流星移动速度减慢至 {0} 倍", lv => (1f - lv * 0.08f).ToString("0.##")),
+
+            new BlessingDef(BlessingId.TanLang,  "贪狼", 5,
+                "流星定位限时 +{0} 秒", lv => (2 * lv).ToString()),
+
+            new BlessingDef(BlessingId.JuMen,    "巨门", 5,
+                "流星体型变大至 {0} 倍", lv => (1f + lv * 0.16f).ToString("0.##")),
+
+            new BlessingDef(BlessingId.WenQu,    "文曲", 2,
+                "随机事件所需的行动数额外 +{0}", lv => lv.ToString()),
+
+            new BlessingDef(BlessingId.WuQu,     "武曲", 2,
+                "每回合结束时有 {0}% 概率不发生漂移", lv => (20 * lv).ToString()),
+
+            new BlessingDef(BlessingId.LuCun,    "禄存", 3,
+                "每回合获得的行动次数额外 +{0}", lv => lv.ToString()),
+
+            new BlessingDef(BlessingId.LianZhen, "廉贞", 3,
+                "总回合数额外 +{0}", lv => lv.ToString())
         };
 
         public static IReadOnlyList<BlessingDef> AllDefs => All;
@@ -54,9 +78,10 @@ namespace StarCard.Drift
         }
 
         public static string GetName(BlessingId id) => Get(id)?.Name ?? "?";
-        public static string GetDesc(BlessingId id) => Get(id)?.Desc ?? "";
+        public static int GetMaxLevel(BlessingId id) => Get(id)?.MaxLevel ?? 1;
+        public static string GetDesc(BlessingId id, int level) => Get(id)?.DescAt(level) ?? "";
 
-        /// <summary>抽一个玩家还没有（也不在待选列表里）的祝福。全都有了返回 None。</summary>
+        /// <summary>抽一个 exclude 里没有的祝福。全都有了返回 None。</summary>
         public static BlessingId RollNew(System.Random rng, ICollection<BlessingId> exclude)
         {
             var pool = new List<BlessingId>();
@@ -66,6 +91,29 @@ namespace StarCard.Drift
             return pool[rng.Next(pool.Count)];
         }
     }
+
+    /// <summary>玩家持有的一个祝福：id + 当前等级。</summary>
+    [System.Serializable]
+    public struct OwnedBlessing
+    {
+        public BlessingId Id;
+        public int Level;
+
+        public OwnedBlessing(BlessingId id, int level = 1)
+        {
+            Id = id;
+            Level = level;
+        }
+
+        public int MaxLevel => BlessingDatabase.GetMaxLevel(Id);
+        public bool IsMaxed => Level >= MaxLevel;
+        public string Name => BlessingDatabase.GetName(Id);
+        public string Desc => BlessingDatabase.GetDesc(Id, Level);
+
+        /// <summary>「破军-3」这种带等级的标题。</summary>
+        public string Title => $"{Name}-{Level}";
+    }
+
 
     /// <summary>
     /// 方位祝福：该方位七宿「归位」后永久获得。

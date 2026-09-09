@@ -172,8 +172,13 @@ namespace StarCard.UI
             }
         }
 
+        /// <param name="radius">基础半径，会乘上巨门的体型系数</param>
+        /// <param name="speed">基础速度，会乘上破军的减速系数</param>
         private void Spawn(MeteorKind kind, float radius, float speed)
         {
+            radius *= _game.MeteorSizeScale;    // 巨门
+            speed  *= _game.MeteorSpeedScale;   // 破军
+
             var rect = ((RectTransform)transform).rect;
             float halfW = rect.width * 0.5f;
             float halfH = rect.height * 0.5f;

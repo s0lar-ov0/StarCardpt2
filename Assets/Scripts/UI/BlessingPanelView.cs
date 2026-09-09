@@ -136,11 +136,13 @@ namespace StarCard.UI
 
             for (int i = 0; i < blessings.Count; i++)
             {
-                var def = BlessingDatabase.Get(blessings[i]);
+                var ob = blessings[i];
                 var card = _starCards[i];
                 card.gameObject.SetActive(true);
                 Place(card, i);
-                card.Bind(def.Name, def.Desc, new Color(0.85f, 0.72f, 0.95f), true);
+                // 标题带等级：「破军-3」；满级的加个标记
+                string title = ob.IsMaxed ? $"{ob.Title}（满）" : ob.Title;
+                card.Bind(title, ob.Desc, new Color(0.85f, 0.72f, 0.95f), true);
             }
             for (int i = blessings.Count; i < _starCards.Count; i++)
                 _starCards[i].gameObject.SetActive(false);

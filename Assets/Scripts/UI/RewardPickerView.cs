@@ -47,11 +47,20 @@ namespace StarCard.UI
         public TMP_Text emptyCardHint;
         public TMP_Text emptyBlessingHint;
 
+        [Header("祝福升级（满 3 个后点粉色流星触发）")]
+        [Tooltip("升级选项挂这下面。留空则复用 blessingRow")]
+        public RectTransform upgradeRow;
+
+        [Tooltip("升级区的说明文字（可留空）")]
+        public TMP_Text upgradeHint;
+
         private DriftGameManager _game;
         private readonly List<bool> _keepCards = new();
         private readonly List<bool> _keepBlessings = new();
         private readonly List<RewardCardEntry> _cardEntries = new();
         private readonly List<RewardBlessingEntry> _blessingEntries = new();
+        private readonly List<RewardBlessingEntry> _upgradeEntries = new();
+        private int _upgradeChoice = -1;
 
         public void Init(DriftGameManager game)
         {
@@ -121,7 +130,7 @@ namespace StarCard.UI
                     rt.anchoredPosition = new Vector2(startX + i * blessingSpacing, 0f);
 
                     int index = i;
-                    entry.Bind(BlessingDatabase.Get(blessings[i]), () =>
+                    entry.Bind(BlessingDatabase.Get(blessings[i]), 1, () =>
                     {
                         _keepBlessings[index] = !_keepBlessings[index];
                         RefreshToggles();
@@ -133,7 +142,50 @@ namespace StarCard.UI
             if (emptyCardHint != null) emptyCardHint.gameObject.SetActive(cards.Count == 0);
             if (emptyBlessingHint != null) emptyBlessingHint.gameObject.SetActive(blessings.Count == 0);
 
+            BuildUpgradeOptions();
             RefreshToggles();
+        }
+
+        /// <summary>
+        /// 祝福满 3 个后点粉色流星，这里列出三个已有祝福供选一个升级。
+        /// **只能升一个、只升一级**；已满级的选项禁用。
+        /// </summary>
+        private void BuildUpgradeOptions()
+        {
+            var row = upgradeRow != null ? upgradeRow : blessingRow;
+            bool show = _game.UpgradeOffered && row != null && blessingEntryPrefab != null;
+
+            if (upgradeHint != null)
+            {
+                upgradeHint.gameObject.SetActive(show);
+                if (show) upgradeHint.text = "本回合可将一个祝福升 1 级（只能选一个）";
+            }
+            if (!show) return;
+
+            var owned = _game.Blessings;
+            float startX = -(owned.Count - 1) * 0.5f * blessingSpacing;
+
+            for (int i = 0; i < owned.Count; i++)
+            {
+                var ob = owned[i];
+                var entry = Instantiate(blessingEntryPrefab, row);
+                entry.gameObject.SetActive(true);
+                var rt = (RectTransform)entry.transform;
+                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(startX + i * blessingSpacing, 0f);
+
+                // 满级的显示当前级、且点不动；可升的显示"升到下一级"的效果
+                int shownLevel = ob.IsMaxed ? ob.Level : ob.Level + 1;
+                int index = i;
+                entry.Bind(BlessingDatabase.Get(ob.Id), shownLevel,
+                           ob.IsMaxed ? (System.Action)null : () =>
+                           {
+                               _upgradeChoice = _upgradeChoice == index ? -1 : index;
+                               RefreshToggles();
+                           });
+                if (ob.IsMaxed && entry.toggleButton != null) entry.toggleButton.interactable = false;
+                _upgradeEntries.Add(entry);
+            }
         }
 
         private void RefreshToggles()
@@ -156,6 +208,18 @@ namespace StarCard.UI
             for (int i = 0; i < _blessingEntries.Count && i < _keepBlessings.Count; i++)
                 _blessingEntries[i].SetKeep(_keepBlessings[i]);
 
+            for (int i = 0; i < _upgradeEntries.Count && i < _game.Blessings.Count; i++)
+            {
+                var ob = _game.Blessings[i];
+                if (ob.IsMaxed)
+                {
+                    _upgradeEntries[i].SetLabel("已满级");
+                    continue;
+                }
+                _upgradeEntries[i].SetLabel(_upgradeChoice == i ? "升级" : "不升");
+                _upgradeEntries[i].SetHighlight(_upgradeChoice == i);
+            }
+
             if (summaryText != null)
                 summaryText.text =
                     $"留下的星宿牌进入手牌（手牌上限 {_game.Config.handLimit}，当前 {_game.Hand.Count}，本次可留 {handRoom} 张，已选 {keptCards}）\n" +
@@ -167,9 +231,10 @@ namespace StarCard.UI
         {
             var keepCards = new List<bool>(_keepCards);
             var keepBless = new List<bool>(_keepBlessings);
+            int upgrade = _upgradeChoice;
             SetVisible(false);
             Clear();
-            _game.ConfirmRewards(keepCards, keepBless);
+            _game.ConfirmRewards(keepCards, keepBless, upgrade);
         }
 
         private void SetVisible(bool on)
@@ -184,6 +249,11 @@ namespace StarCard.UI
                 if (_cardEntries[i] != null) Destroy(_cardEntries[i].gameObject);
             for (int i = 0; i < _blessingEntries.Count; i++)
                 if (_blessingEntries[i] != null) Destroy(_blessingEntries[i].gameObject);
+            for (int i = 0; i < _upgradeEntries.Count; i++)
+                if (_upgradeEntries[i] != null) Destroy(_upgradeEntries[i].gameObject);
+            _upgradeEntries.Clear();
+            _upgradeChoice = -1;
+
             _cardEntries.Clear();
             _blessingEntries.Clear();
             _keepCards.Clear();

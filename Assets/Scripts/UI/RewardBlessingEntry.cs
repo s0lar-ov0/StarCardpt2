@@ -34,17 +34,30 @@ namespace StarCard.UI
             if (toggleButton != null) toggleButton.onClick.AddListener(() => _onToggle?.Invoke());
         }
 
-        public void Bind(BlessingDef def, Action onToggle)
+        /// <param name="level">这条祝福按几级显示效果。新获得的祝福是 1 级</param>
+        public void Bind(BlessingDef def, int level, Action onToggle)
         {
             _onToggle = onToggle;
-            if (nameText != null) nameText.text = def.Name;
-            if (descText != null) descText.text = def.Desc;
+            if (nameText != null) nameText.text = $"{def.Name}-{level}";
+            if (descText != null) descText.text = def.DescAt(level);
+        }
+
+        /// <summary>直接指定按钮文字（升级流程要显示"升级/不升/已满级"而不是"留下/删去"）。</summary>
+        public void SetLabel(string text)
+        {
+            if (toggleLabel != null) toggleLabel.text = text;
         }
 
         public void SetKeep(bool keep)
         {
-            if (toggleBackground != null) toggleBackground.color = keep ? keepColor : dropColor;
+            SetHighlight(keep);
             if (toggleLabel != null) toggleLabel.text = keep ? "留下" : "删去";
+        }
+
+        /// <summary>只改底色不动文字，配合 SetLabel 用。</summary>
+        public void SetHighlight(bool on)
+        {
+            if (toggleBackground != null) toggleBackground.color = on ? keepColor : dropColor;
         }
     }
 }
