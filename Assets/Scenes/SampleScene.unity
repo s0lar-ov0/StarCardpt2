@@ -14115,9 +14115,9 @@ MonoBehaviour:
   cardLayer: {fileID: 888299626}
   spacing: 212
   topPadding: 112
-  bottomPadding: 20
+  bottomPadding: 24
   horizontalOffset: 0
-  autoScrollToNewest: 1
+  minSpacing: 74
 --- !u!1 &889498190
 GameObject:
   m_ObjectHideFlags: 0

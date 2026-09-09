@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using StarCard.Drift;
 
 namespace StarCard.UI
@@ -11,9 +10,9 @@ namespace StarCard.UI
     /// 牌是运行时从 cardPrefab 生成的（数量随局势变），**竖向排列在棋盘右侧**。
     /// 点一张 = 选中，然后点棋盘空位落子。
     ///
-    /// 棋盘只有 4 行，手牌可能比可视高度多，所以支持滚动：
-    /// 把 `scrollRect` 和 `content` 拖上，脚本会按牌数自动撑高 content，
-    /// 超出可视区时滚动条自动出现。
+    /// 手牌可能比栏高放得下的张数多，这里**不用滚动条**：
+    /// 张数少时按 `spacing` 正常排开，多到放不下就自动缩小间距让牌**部分重叠**
+    /// （下面的牌盖住上面那张的底部，宿名和角标仍露在外面）。
     /// </summary>
     public class HandView : MonoBehaviour
     {
@@ -21,35 +20,28 @@ namespace StarCard.UI
         [Tooltip("星宿牌 prefab（挂 DriftCardView）。可以和 BoardView 用同一个")]
         public DriftCardView cardPrefab;
 
-        [Tooltip("生成的牌挂在哪个物体下。用滚动时拖 Viewport/Content；留空则挂在自己身上")]
+        [Tooltip("生成的牌挂在哪个物体下。留空则挂在自己身上")]
         public RectTransform cardLayer;
 
-        [Header("滚动（可选，留空则不滚动）")]
-        [Tooltip("手牌栏的 ScrollRect。留空 = 不滚动，牌多了会溢出")]
-        public ScrollRect scrollRect;
-
-        [Tooltip("被撑高的 Content。一般和 cardLayer 是同一个物体")]
-        public RectTransform content;
-
         [Header("竖向排列")]
-        [Tooltip("相邻两张牌的中心间距（竖直方向）")]
-        public float spacing = 210f;
+        [Tooltip("张数少、放得下时的间距。一般设成卡牌高度 + 一点空隙")]
+        public float spacing = 212f;
 
-        [Tooltip("第一张牌距 Content 顶部的距离")]
-        public float topPadding = 110f;
+        [Tooltip("第一张牌中心距栏顶部的距离")]
+        public float topPadding = 112f;
 
-        [Tooltip("最后一张牌下方留的空隙")]
-        public float bottomPadding = 20f;
+        [Tooltip("最后一张牌下方要留的空隙（给按钮/边框让位）")]
+        public float bottomPadding = 24f;
 
         [Tooltip("牌在栏内的水平偏移")]
         public float horizontalOffset = 0f;
 
-        [Tooltip("新牌加入时自动滚到底部")]
-        public bool autoScrollToNewest = true;
+        [Header("重叠")]
+        [Tooltip("放不下时允许压缩到的最小间距。太小会把宿名也盖住 —— 建议不低于卡牌高度的 1/3")]
+        public float minSpacing = 74f;
 
         private DriftGameManager _game;
         private readonly List<DriftCardView> _views = new();
-        private int _lastCount = -1;
 
         public int SelectedIndex { get; private set; } = -1;
         public event Action<int> SelectionChanged;
@@ -57,12 +49,9 @@ namespace StarCard.UI
         public void Init(DriftGameManager game)
         {
             _game = game;
-
-            if (cardLayer == null) cardLayer = content != null ? content : (RectTransform)transform;
-            if (content == null && scrollRect != null) content = scrollRect.content;
+            if (cardLayer == null) cardLayer = (RectTransform)transform;
             if (cardPrefab == null)
                 Debug.LogError("[HandView] cardPrefab 没拖！手牌不会显示。", this);
-
             _game.StateChanged += Refresh;
         }
 
@@ -86,6 +75,23 @@ namespace StarCard.UI
             RefreshSelectionVisual();
         }
 
+        /// <summary>按当前张数算实际间距：放得下就用 spacing，放不下就压缩（下限 minSpacing）。</summary>
+        private float ComputeSpacing(int count)
+        {
+            if (count <= 1) return spacing;
+
+            // 可用高度要扣掉最后一张牌的下半部分 —— 否则算出来的间距会让末张溢出栏底
+            float cardH = cardPrefab != null ? cardPrefab.Rect.sizeDelta.y : 0f;
+            float usable = ((RectTransform)transform).rect.height
+                           - topPadding - bottomPadding - cardH * 0.5f;
+            if (usable <= 0f) return minSpacing;
+
+            float needed = (count - 1) * spacing;
+            if (needed <= usable) return spacing;
+
+            return Mathf.Max(minSpacing, usable / (count - 1));
+        }
+
         public void Refresh()
         {
             if (_game == null || cardPrefab == null) return;
@@ -102,9 +108,8 @@ namespace StarCard.UI
 
             if (SelectedIndex >= hand.Count) SelectedIndex = -1;
 
-            ResizeContent(hand.Count);
+            float step = ComputeSpacing(hand.Count);
 
-            // 竖排：从上往下，锚点在 Content 顶部
             for (int i = 0; i < hand.Count; i++)
             {
                 var view = _views[i];
@@ -116,46 +121,28 @@ namespace StarCard.UI
                 var rt = view.Rect;
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
                 rt.pivot = new Vector2(0.5f, 0.5f);
-                view.MoveTo(new Vector2(horizontalOffset, -(topPadding + i * spacing)), true);
+                view.MoveTo(new Vector2(horizontalOffset, -(topPadding + i * step)), true);
+
+                // 重叠时后面的牌要盖在前面那张上面，否则下半张会被压住看不出层次
+                rt.SetSiblingIndex(i);
 
                 view.SetLinked(false);
                 view.SetInteractable(_game.Phase == DriftPhase.Board);
             }
 
-            if (autoScrollToNewest && scrollRect != null && hand.Count > _lastCount && _lastCount >= 0)
-                ScrollToBottom();
-            _lastCount = hand.Count;
-
             RefreshSelectionVisual();
-        }
-
-        /// <summary>按牌数撑高 Content，让 ScrollRect 知道什么时候该出滚动条。</summary>
-        private void ResizeContent(int count)
-        {
-            if (content == null) return;
-            float needed = topPadding + Mathf.Max(0, count - 1) * spacing + bottomPadding;
-
-            // 至少和可视区一样高，否则内容比视口小时 ScrollRect 会把内容顶飞
-            float viewport = scrollRect != null && scrollRect.viewport != null
-                ? scrollRect.viewport.rect.height
-                : ((RectTransform)transform).rect.height;
-            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(needed, viewport));
-        }
-
-        public void ScrollToBottom()
-        {
-            if (scrollRect != null) scrollRect.verticalNormalizedPosition = 0f;
-        }
-
-        public void ScrollToTop()
-        {
-            if (scrollRect != null) scrollRect.verticalNormalizedPosition = 1f;
         }
 
         private void RefreshSelectionVisual()
         {
             for (int i = 0; i < _views.Count; i++)
-                if (_views[i].gameObject.activeSelf) _views[i].SetSelected(i == SelectedIndex);
+            {
+                if (!_views[i].gameObject.activeSelf) continue;
+                bool sel = i == SelectedIndex;
+                _views[i].SetSelected(sel);
+                // 选中的提到最前，重叠时才能看清整张
+                if (sel) _views[i].Rect.SetAsLastSibling();
+            }
         }
 
         private void OnCardClicked(DriftCardView view)
