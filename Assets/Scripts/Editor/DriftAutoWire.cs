@@ -207,7 +207,28 @@ namespace StarCard.EditorTools
         private static void WireHand(HandView hand)
         {
             if (hand == null) return;
-            hand.cardLayer = (RectTransform)hand.transform;
+
+            // 手牌栏搭了滚动的话，牌要塞进 Content，不能塞在 Hand 根上 ——
+            // 否则会被 Viewport 的裁剪排除在外、也不跟着滚动。
+            var scroll = hand.GetComponent<ScrollRect>();
+            if (scroll != null)
+            {
+                hand.scrollRect = scroll;
+                if (scroll.content != null)
+                {
+                    hand.content = scroll.content;
+                    hand.cardLayer = scroll.content;
+                }
+                else
+                {
+                    Warn(hand, "Hand 上有 ScrollRect 但 content 没填 —— 先跑「搭建手牌栏滚动条」");
+                }
+            }
+            else if (hand.cardLayer == null)
+            {
+                hand.cardLayer = (RectTransform)hand.transform;
+            }
+
             EditorUtility.SetDirty(hand);
         }
 
