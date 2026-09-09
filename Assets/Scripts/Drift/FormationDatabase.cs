@@ -10,37 +10,36 @@ namespace StarCard.Drift
     /// </summary>
     public static class FormationDatabase
     {
-        // 青龙（东）—— 蜿蜒龙身，斜向下探
+        // 青龙（东）3x7
         private static readonly string[] EastShape =
         {
-            "X...",
-            "XX..",
-            ".XX.",
-            "..XX"
+            "X......",
+            ".XX.XX.",
+            "...X..X"
         };
 
-        // 玄武（北）—— 龟甲加蛇尾
+        // 玄武（北）2x4
         private static readonly string[] NorthShape =
         {
-            "XX..",
-            "XXX.",
-            "..XX"
+            ".XXX",
+            "XXXX"
         };
 
-        // 白虎（西）—— 伏虎，四足撑开
+        // 白虎（西）3x5
         private static readonly string[] WestShape =
         {
-            "X...X",
-            ".XXX.",
-            "X...X"
+            "....X",
+            "XXXX.",
+            ".X.X."
         };
 
-        // 朱雀（南）—— 展翼之鸟
+        // 朱雀（南）4x4
         private static readonly string[] SouthShape =
         {
-            "..X..",
-            "XXXXX",
-            "..X.."
+            "X.XX",
+            ".XX.",
+            "..X.",
+            "...X"
         };
 
         private static readonly Dictionary<Direction, GridPos[]> Templates = new();
