@@ -15,7 +15,9 @@ namespace StarCard.UI
         public static void Spawn(Transform parent, Vector2 pos, string content, Color color,
                                  TMP_FontAsset font, float fontSize, float duration, float riseSpeed)
         {
-            var text = UIFactory.CreateText("Floating", parent, content, fontSize, color, font);
+            // font 没拖时退回全局中文字体，别掉成没有中文字形的 LiberationSans
+            var text = UIFactory.CreateText("Floating", parent, content, fontSize, color,
+                                            font != null ? font : UIFactory.Font);
             var rt = (RectTransform)text.transform;
             UIFactory.AnchorCenter(rt, pos, new Vector2(360f, 44f));
             var ft = text.gameObject.AddComponent<FloatingText>();

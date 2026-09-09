@@ -311,7 +311,7 @@ namespace StarCard.EditorTools
             field.timerText = FindText(field.transform, "TimerText");
             field.skipButton = FindButton(field.transform, "SkipButton");
             if (field.floatingFont == null)
-                field.floatingFont = Resources.Load<TMP_FontAsset>("Fonts/STKAITI SDF 1");
+                field.floatingFont = Resources.Load<TMP_FontAsset>(UIFactory.FontResourcePath);
 
             EditorUtility.SetDirty(field);
         }

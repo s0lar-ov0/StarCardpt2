@@ -282,7 +282,7 @@ namespace StarCard.EditorTools
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var text = go.AddComponent<TextMeshProUGUI>();
-            var font = Resources.Load<TMP_FontAsset>("Fonts/STKAITI SDF 1");
+            var font = Resources.Load<TMP_FontAsset>(UIFactory.FontResourcePath);
             if (font != null) text.font = font;
             text.text = content;
             text.fontSize = size;

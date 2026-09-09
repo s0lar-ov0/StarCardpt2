@@ -14,8 +14,26 @@ namespace StarCard.UI
     /// </summary>
     public static class UIFactory
     {
+        /// <summary>
+        /// 全局中文字体的 Resources 路径。**换字体只改这一行** ——
+        /// Editor 工具（自动填充引用 / 提取 Prefab）填字体字段时都读这里。
+        /// 场景和 prefab 里已经拖好的引用不受影响，那些是资产 guid。
+        /// </summary>
+        public const string FontResourcePath = "Fonts/霞鹜文楷static";
+
         private static Sprite _circle;
         private static Sprite _rounded;
+        private static TMP_FontAsset _font;
+
+        /// <summary>全局中文字体。运行时生成的东西（飘字）用它兜底。</summary>
+        public static TMP_FontAsset Font
+        {
+            get
+            {
+                if (_font == null) _font = Resources.Load<TMP_FontAsset>(FontResourcePath);
+                return _font;
+            }
+        }
 
         /// <summary>圆形贴图，流星用。</summary>
         public static Sprite Circle

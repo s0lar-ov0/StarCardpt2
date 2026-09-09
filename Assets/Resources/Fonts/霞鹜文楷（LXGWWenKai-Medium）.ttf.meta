@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 6541a5456714de34393a5c1cd78fb4dc
+guid: 7faa13a0b0feaef498fd613279802188
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,7 +9,7 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - STKaiti
+  - LXGW WenKai
   fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0
