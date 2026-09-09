@@ -33,6 +33,9 @@ namespace StarCard.UI
         [Range(0.1f, 1f)]
         public float dimmedAlpha = 0.45f;
 
+        /// <summary>跟 DriftCardView 保持一致的便捷属性，省得每次现转类型。</summary>
+        public RectTransform Rect => (RectTransform)transform;
+
         private void Awake()
         {
             if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
