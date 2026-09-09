@@ -26,6 +26,7 @@ namespace StarCard.Drift
         [Header("流星定位")]
         [Tooltip("流星阶段基础时长（秒）")] public float meteorPhaseDuration = 14f;
         [Tooltip("众星祝福持有上限")] public int blessingLimit = 3;
+        [Tooltip("每回合最多能攒几个候选祝福（结算界面从里面选一个收下）")] public int blessingCandidateLimit = 3;
         [Tooltip("大型白色流星生成间隔（秒）")] public float bigSpawnInterval = 3.2f;
         [Tooltip("中型属性流星生成间隔（秒）")] public float mediumSpawnInterval = 1.1f;
         [Tooltip("小型粉色流星生成间隔（秒）")] public float smallSpawnInterval = 4.5f;

@@ -160,7 +160,10 @@ namespace StarCard.Drift
                 // 如果连生成都掐掉，玩家点中第一颗后剩下的定位时间里粉色流星
                 // 会彻底消失，看起来像"整局只有一颗"。
                 if (_blessings.Count < config.blessingLimit)
-                    return BlessingDatabase.AllDefs.Count > _blessings.Count;
+                {
+                    if (_pendingBlessings.Count >= config.blessingCandidateLimit) return false;
+                    return BlessingDatabase.AllDefs.Count > _blessings.Count + _pendingBlessings.Count;
+                }
 
                 // 三个都满级了才真的没必要再刷
                 return HasUpgradableBlessing;
@@ -289,11 +292,15 @@ namespace StarCard.Drift
         }
 
         /// <summary>取舍确认。keepCards / keepBlessings 与 PendingCards / PendingBlessings 一一对应。</summary>
+        /// <param name="blessingChoice">
+        /// 要收下的候选祝福在 PendingBlessings 里的下标；-1 = 都不要。
+        /// **只能收一个** —— 没选的不作记录，下回合还能再抽到。
+        /// </param>
         /// <param name="upgradeIndex">
         /// 要升级的祝福在 Blessings 里的下标；-1 = 不升级。
         /// 只在本回合有升级机会（UpgradeOffered）时有意义，且**只能升一个、只升一级**。
         /// </param>
-        public void ConfirmRewards(IList<bool> keepCards, IList<bool> keepBlessings, int upgradeIndex = -1)
+        public void ConfirmRewards(IList<bool> keepCards, int blessingChoice = -1, int upgradeIndex = -1)
         {
             if (Phase != DriftPhase.RewardPick) return;
 
@@ -312,17 +319,25 @@ namespace StarCard.Drift
                 }
             }
 
-            for (int i = 0; i < _pendingBlessings.Count; i++)
+            // 候选祝福里**只能收下一个**（blessingChoice 是候选池的下标，-1 = 都不要）。
+            // 没被选中的不做任何记录 —— 下回合还能再抽到，这是有意的。
+            if (blessingChoice >= 0 && blessingChoice < _pendingBlessings.Count)
             {
-                bool keep = keepBlessings != null && i < keepBlessings.Count && keepBlessings[i];
-                if (!keep) continue;
+                var picked = _pendingBlessings[blessingChoice];
                 if (_blessings.Count >= config.blessingLimit)
                 {
-                    Log($"众星祝福已满 {config.blessingLimit} 个，{BlessingDatabase.GetName(_pendingBlessings[i])} 散去。");
-                    continue;
+                    Log($"众星祝福已满 {config.blessingLimit} 个，{BlessingDatabase.GetName(picked)} 散去。");
                 }
-                _blessings.Add(new OwnedBlessing(_pendingBlessings[i], 1));
-                Log($"获得众星祝福：{BlessingDatabase.GetName(_pendingBlessings[i])}-1");
+                else
+                {
+                    _blessings.Add(new OwnedBlessing(picked, 1));
+                    Log($"获得众星祝福：{BlessingDatabase.GetName(picked)}-1");
+                }
+            }
+            if (_pendingBlessings.Count > 0)
+            {
+                int passed = _pendingBlessings.Count - (blessingChoice >= 0 ? 1 : 0);
+                if (passed > 0) Log($"另有 {passed} 个祝福未选（下回合仍可再抽到）。");
             }
 
             // 升级：只能一个、只升一级、满级的不能升
@@ -384,13 +399,16 @@ namespace StarCard.Drift
 
                 case MeteorSize.Small:
                 {
-                    // 未满 3 个：随机抽一个新祝福，但**每回合只能新增一个**
+                    // 未满 3 个：每颗流星都能点，抽到的都进候选池；
+                    // 结算界面从候选里**选一个**收下，没选的下回合还能再抽到。
                     if (_blessings.Count < config.blessingLimit)
                     {
-                        if (_pendingBlessings.Count > 0) return "本回合已有祝福待取";
+                        if (_pendingBlessings.Count >= config.blessingCandidateLimit)
+                            return "候选已满";
 
                         var exclude = new List<BlessingId>();
                         for (int i = 0; i < _blessings.Count; i++) exclude.Add(_blessings[i].Id);
+                        exclude.AddRange(_pendingBlessings);          // 同回合不重复抽同一个
                         var id = BlessingDatabase.RollNew(_rng, exclude);
                         if (id == BlessingId.None) return "众星祝福已尽";
                         _pendingBlessings.Add(id);
@@ -398,7 +416,7 @@ namespace StarCard.Drift
                         return $"+{BlessingDatabase.GetName(id)}";
                     }
 
-                    // 已满 3 个：进入升级流程，同样**每回合只能升一次**
+                    // 已满 3 个：进入升级流程，**点多颗也只给一次升级机会**
                     if (_upgradeOffered) return "本回合已可升级";
                     if (!HasUpgradableBlessing) return "祝福均已满级";
                     _upgradeOffered = true;

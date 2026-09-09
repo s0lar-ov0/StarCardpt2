@@ -56,7 +56,7 @@ namespace StarCard.UI
 
         private DriftGameManager _game;
         private readonly List<bool> _keepCards = new();
-        private readonly List<bool> _keepBlessings = new();
+        private int _blessingChoice = -1;   // 候选祝福里选中哪个，-1 = 都不要
         private readonly List<RewardCardEntry> _cardEntries = new();
         private readonly List<RewardBlessingEntry> _blessingEntries = new();
         private readonly List<RewardBlessingEntry> _upgradeEntries = new();
@@ -95,18 +95,20 @@ namespace StarCard.UI
             int blessRoom = Mathf.Max(0, _game.Config.blessingLimit - _game.Blessings.Count);
 
             for (int i = 0; i < cards.Count; i++) _keepCards.Add(i < handRoom);
-            for (int i = 0; i < blessings.Count; i++) _keepBlessings.Add(i < blessRoom);
+            // 候选祝福单选：有位置就默认选第一个，方便一路确认
+            _blessingChoice = (blessRoom > 0 && blessings.Count > 0) ? 0 : -1;
 
             if (cardEntryPrefab != null && cardRow != null)
             {
-                float startX = -(cards.Count - 1) * 0.5f * cardSpacing;
+                float cardStep = FitSpacing(cardSpacing, cards.Count, cardRow, 148f);
+                float startX = -(cards.Count - 1) * 0.5f * cardStep;
                 for (int i = 0; i < cards.Count; i++)
                 {
                     var entry = Instantiate(cardEntryPrefab, cardRow);
                     entry.gameObject.SetActive(true);
                     var rt = (RectTransform)entry.transform;
                     rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                    rt.anchoredPosition = new Vector2(startX + i * cardSpacing, 0f);
+                    rt.anchoredPosition = new Vector2(startX + i * cardStep, 0f);
 
                     int index = i;
                     entry.Bind(cards[i], () =>
@@ -120,19 +122,21 @@ namespace StarCard.UI
 
             if (blessingEntryPrefab != null && blessingRow != null)
             {
-                float startX = -(blessings.Count - 1) * 0.5f * blessingSpacing;
+                // 候选可能攒到 7 个（祝福总数），固定间距会横向溢出 —— 按数量压缩
+                float step = FitSpacing(blessingSpacing, blessings.Count, blessingRow, 320f);
+                float startX = -(blessings.Count - 1) * 0.5f * step;
                 for (int i = 0; i < blessings.Count; i++)
                 {
                     var entry = Instantiate(blessingEntryPrefab, blessingRow);
                     entry.gameObject.SetActive(true);
                     var rt = (RectTransform)entry.transform;
                     rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                    rt.anchoredPosition = new Vector2(startX + i * blessingSpacing, 0f);
+                    rt.anchoredPosition = new Vector2(startX + i * step, 0f);
 
                     int index = i;
                     entry.Bind(BlessingDatabase.Get(blessings[i]), 1, () =>
                     {
-                        _keepBlessings[index] = !_keepBlessings[index];
+                        _blessingChoice = _blessingChoice == index ? -1 : index;
                         RefreshToggles();
                     });
                     _blessingEntries.Add(entry);
@@ -163,7 +167,8 @@ namespace StarCard.UI
             if (!show) return;
 
             var owned = _game.Blessings;
-            float startX = -(owned.Count - 1) * 0.5f * blessingSpacing;
+            float upStep = FitSpacing(blessingSpacing, owned.Count, row, 320f);
+            float startX = -(owned.Count - 1) * 0.5f * upStep;
 
             for (int i = 0; i < owned.Count; i++)
             {
@@ -172,7 +177,7 @@ namespace StarCard.UI
                 entry.gameObject.SetActive(true);
                 var rt = (RectTransform)entry.transform;
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(startX + i * blessingSpacing, 0f);
+                rt.anchoredPosition = new Vector2(startX + i * upStep, 0f);
 
                 // 满级的显示当前级、且点不动；可升的显示"升到下一级"的效果
                 int shownLevel = ob.IsMaxed ? ob.Level : ob.Level + 1;
@@ -193,20 +198,23 @@ namespace StarCard.UI
             int handRoom = Mathf.Max(0, _game.Config.handLimit - _game.Hand.Count);
             int blessRoom = Mathf.Max(0, _game.Config.blessingLimit - _game.Blessings.Count);
 
-            int keptCards = 0, keptBless = 0;
+            int keptCards = 0;
             for (int i = 0; i < _keepCards.Count; i++) if (_keepCards[i]) keptCards++;
-            for (int i = 0; i < _keepBlessings.Count; i++) if (_keepBlessings[i]) keptBless++;
+            if (blessRoom <= 0) _blessingChoice = -1;      // 满了就不能再收
+            int keptBless = _blessingChoice >= 0 ? 1 : 0;
 
             // 超上限时，从后往前把多余的「留下」改回「删去」
             for (int i = _keepCards.Count - 1; i >= 0 && keptCards > handRoom; i--)
                 if (_keepCards[i]) { _keepCards[i] = false; keptCards--; }
-            for (int i = _keepBlessings.Count - 1; i >= 0 && keptBless > blessRoom; i--)
-                if (_keepBlessings[i]) { _keepBlessings[i] = false; keptBless--; }
 
             for (int i = 0; i < _cardEntries.Count && i < _keepCards.Count; i++)
                 _cardEntries[i].SetKeep(_keepCards[i]);
-            for (int i = 0; i < _blessingEntries.Count && i < _keepBlessings.Count; i++)
-                _blessingEntries[i].SetKeep(_keepBlessings[i]);
+            for (int i = 0; i < _blessingEntries.Count; i++)
+            {
+                bool chosen = _blessingChoice == i;
+                _blessingEntries[i].SetLabel(chosen ? "收下" : "不要");
+                _blessingEntries[i].SetHighlight(chosen);
+            }
 
             for (int i = 0; i < _upgradeEntries.Count && i < _game.Blessings.Count; i++)
             {
@@ -230,17 +238,31 @@ namespace StarCard.UI
         private void OnConfirm()
         {
             var keepCards = new List<bool>(_keepCards);
-            var keepBless = new List<bool>(_keepBlessings);
+            int blessPick = _blessingChoice;
             int upgrade = _upgradeChoice;
             SetVisible(false);
             Clear();
-            _game.ConfirmRewards(keepCards, keepBless, upgrade);
+            _game.ConfirmRewards(keepCards, blessPick, upgrade);
         }
 
         private void SetVisible(bool on)
         {
             if (panel != null) panel.SetShown(on);
             else gameObject.SetActive(on);
+        }
+
+        /// <summary>
+        /// 按条目数算实际间距：放得下用 preferred，放不下就压缩到刚好塞进容器
+        /// （下限是条目宽的 55%，再挤就完全叠住看不清了）。
+        /// </summary>
+        private static float FitSpacing(float preferred, int count, RectTransform row, float itemWidth)
+        {
+            if (count <= 1 || row == null) return preferred;
+            float usable = row.rect.width - itemWidth;      // 首尾各留半个条目
+            if (usable <= 0f) return preferred;
+            float needed = (count - 1) * preferred;
+            if (needed <= usable) return preferred;
+            return Mathf.Max(itemWidth * 0.55f, usable / (count - 1));
         }
 
         private void Clear()
@@ -257,7 +279,7 @@ namespace StarCard.UI
             _cardEntries.Clear();
             _blessingEntries.Clear();
             _keepCards.Clear();
-            _keepBlessings.Clear();
+            _blessingChoice = -1;
         }
     }
 }
