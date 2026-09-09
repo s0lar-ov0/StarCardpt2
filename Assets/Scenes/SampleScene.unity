@@ -2765,7 +2765,7 @@ MonoBehaviour:
   blessingRow: {fileID: 2005445425}
   cardEntryPrefab: {fileID: 7173911368757553937, guid: 1e44325860e2fcf4d84430dc0063ae29, type: 3}
   blessingEntryPrefab: {fileID: 7332985921316676455, guid: ba97bdce48e7ba84c80823d6b88c6f88, type: 3}
-  cardSpacing: 133
+  cardSpacing: 168
   blessingSpacing: 340
   summaryText: {fileID: 961615128}
   confirmButton: {fileID: 976499078}
@@ -14375,8 +14375,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -145}
-  m_SizeDelta: {x: 1100, y: 220}
+  m_AnchoredPosition: {x: 0, y: -190}
+  m_SizeDelta: {x: 1100, y: 252}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &906371751
 GameObject:
@@ -31688,8 +31688,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -420}
-  m_SizeDelta: {x: 1100, y: 130}
+  m_AnchoredPosition: {x: 0, y: -400}
+  m_SizeDelta: {x: 1100, y: 140}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &2007180888
 GameObject:

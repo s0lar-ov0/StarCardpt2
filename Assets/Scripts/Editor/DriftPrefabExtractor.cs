@@ -235,25 +235,39 @@ namespace StarCard.EditorTools
             return prefab;
         }
 
-        /// <summary>取舍面板的「星宿牌条目」prefab：一张牌 + 一个留下/删去按钮。场景里没有现成的，新建。</summary>
         private static RewardCardEntry BuildRewardCardEntry(DriftCardView cardPrefab)
         {
+            // 本次没提到卡牌就从磁盘捡 —— 否则条目里嵌不进牌，
+            // 取舍面板会只显示"留下/删去"按钮而看不见牌面（这个 bug 出现过一次）
+            if (cardPrefab == null)
+                cardPrefab = AssetDatabase.LoadAssetAtPath<DriftCardView>($"{PrefabDir}/StarCardView.prefab");
+            if (cardPrefab == null)
+            {
+                Debug.LogError("[提取 Prefab] 找不到 StarCardView.prefab，牌条目里会没有牌面。" +
+                               "先让卡牌 prefab 生成成功，再重跑本菜单。");
+                return null;
+            }
+
+            float cw = cardPrefab.Rect.sizeDelta.x;
+            float ch = cardPrefab.Rect.sizeDelta.y;
+            const float btnH = 42f;
+            const float gap = 10f;
+
             var root = new GameObject("RewardCardEntry", typeof(RectTransform));
             var rt = (RectTransform)root.transform;
-            rt.sizeDelta = new Vector2(104f, 210f);
+            rt.sizeDelta = new Vector2(cw, ch + gap + btnH);
 
             var entry = root.AddComponent<RewardCardEntry>();
 
-            if (cardPrefab != null)
-            {
-                var card = (DriftCardView)PrefabUtility.InstantiatePrefab(cardPrefab, root.transform);
-                var crt = card.Rect;
-                crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
-                crt.anchoredPosition = new Vector2(0f, 28f);
-                entry.cardView = card;
-            }
+            var card = (DriftCardView)PrefabUtility.InstantiatePrefab(cardPrefab, root.transform);
+            var crt = card.Rect;
+            crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.anchoredPosition = new Vector2(0f, (gap + btnH) * 0.5f);   // 牌在上
+            entry.cardView = card;
 
-            var btn = MakeButton(root.transform, "Toggle", new Vector2(104f, 42f), new Vector2(0f, -80f), "留下");
+            // 按钮在牌下方
+            var btn = MakeButton(root.transform, "Toggle", new Vector2(cw, btnH),
+                                 new Vector2(0f, -(ch + gap) * 0.5f), "留下");
             entry.toggleButton = btn;
             entry.toggleBackground = btn.targetGraphic as Image;
             entry.toggleLabel = btn.GetComponentInChildren<TMP_Text>();
