@@ -105,6 +105,7 @@ namespace StarCard.UI
             {
                 if (_game.Phase == DriftPhase.Meteor) _game.EndMeteorPhase();
                 else if (_game.Phase == DriftPhase.Board) _game.EndTurnByPlayer();
+                else if (_game.Phase == DriftPhase.TurnReview) _game.FinishTurnReview();
             }
             if (Input.GetKeyDown(helpKey)) ToggleHelp();
             if (Input.GetKeyDown(restartKey)) Restart();

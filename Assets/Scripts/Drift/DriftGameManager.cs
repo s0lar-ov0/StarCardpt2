@@ -16,6 +16,8 @@ namespace StarCard.Drift
         RewardPick,
         /// <summary>棋盘操作</summary>
         Board,
+        /// <summary>回合结束后的短暂停顿，让玩家看清漂移/变换的结果</summary>
+        TurnReview,
         /// <summary>一局结束</summary>
         GameOver
     }
@@ -52,6 +54,7 @@ namespace StarCard.Drift
         private bool _freeMoveUsedThisTurn;
         private float _meteorTimeLeft;
         private float _meteorDuration;
+        private float _reviewTimeLeft;
         private System.Random _rng;
 
         public IReadOnlyList<Core.StarCard> Hand => _hand;
@@ -64,6 +67,8 @@ namespace StarCard.Drift
 
         public float MeteorTimeLeft => _meteorTimeLeft;
         public float MeteorDuration => _meteorDuration;
+        /// <summary>回合结束停顿的剩余秒数（TurnReview 阶段有效）。</summary>
+        public float ReviewTimeLeft => _reviewTimeLeft;
         public bool IsWin => _homecomed.Count >= 4;
 
         // ---------- 事件（UI 订阅） ----------
@@ -119,12 +124,25 @@ namespace StarCard.Drift
         // ---------- 生命周期 ----------
         private void Update()
         {
-            if (Phase != DriftPhase.Meteor) return;
-            _meteorTimeLeft -= Time.deltaTime;
-            if (_meteorTimeLeft <= 0f)
+            if (Phase == DriftPhase.Meteor)
             {
-                _meteorTimeLeft = 0f;
-                EndMeteorPhase();
+                _meteorTimeLeft -= Time.deltaTime;
+                if (_meteorTimeLeft <= 0f)
+                {
+                    _meteorTimeLeft = 0f;
+                    EndMeteorPhase();
+                }
+                return;
+            }
+
+            if (Phase == DriftPhase.TurnReview)
+            {
+                _reviewTimeLeft -= Time.deltaTime;
+                if (_reviewTimeLeft <= 0f)
+                {
+                    _reviewTimeLeft = 0f;
+                    FinishTurnReview();
+                }
             }
         }
 
@@ -387,15 +405,43 @@ namespace StarCard.Drift
                 Log($"回合结算：连结 {linked} 张，+{gain} 分。");
             }
 
-            Board.TickBlocks();
-            Notify();
+            // 手牌不跨回合：没打出去的牌回卡池，下回合靠流星重新获取
+            DiscardHandToPool();
 
+            Board.TickBlocks();
+
+            // 归位四方就直接结束，不必再停顿
             if (IsWin)
             {
+                Notify();
                 FinishGame("四方归位");
                 return;
             }
+
+            // 停顿一下让玩家看清漂移后的棋盘，再进下一回合
+            _reviewTimeLeft = Mathf.Max(0f, config.turnReviewDuration);
+            SetPhase(DriftPhase.TurnReview);
+            Notify();
+
+            if (_reviewTimeLeft <= 0f) FinishTurnReview();
+        }
+
+        /// <summary>停顿结束（或被玩家点掉），进入下一回合。</summary>
+        public void FinishTurnReview()
+        {
+            if (Phase != DriftPhase.TurnReview) return;
+            _reviewTimeLeft = 0f;
             BeginTurn();
+        }
+
+        /// <summary>把手上没打出去的牌全部退回卡池。</summary>
+        private void DiscardHandToPool()
+        {
+            if (_hand.Count == 0) return;
+            int n = _hand.Count;
+            _pool.AddRange(_hand);
+            _hand.Clear();
+            Log($"回合结束：{n} 张未放置的星宿牌退回卡池。");
         }
 
         /// <summary>棋盘上所有非连结的牌随机移动到合法空位。</summary>

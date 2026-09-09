@@ -107,6 +107,11 @@ namespace StarCard.UI
 
         private void Update()
         {
+            // 回合结算的倒计时每帧在变，而 StateChanged 在停顿期间不会触发，
+            // 所以这里单独刷一下那一格文字。
+            if (_game != null && _game.Phase == DriftPhase.TurnReview && actionText != null)
+                actionText.text = $"下回合 {_game.ReviewTimeLeft:0.0} 秒后";
+
             if (banner == null || !banner.activeSelf) return;
             _bannerLife -= Time.deltaTime;
             if (_bannerLife <= 0f) banner.SetActive(false);
@@ -122,9 +127,14 @@ namespace StarCard.UI
             if (phaseText != null)
                 phaseText.text = "阶段 " + PhaseName(_game.Phase);
             if (actionText != null)
-                actionText.text = _game.Phase == DriftPhase.Board
-                    ? $"行动次数 {_game.ActionsLeft}"
-                    : $"行动次数 —（+{_game.PendingBonusActions}）";
+            {
+                if (_game.Phase == DriftPhase.Board)
+                    actionText.text = $"行动次数 {_game.ActionsLeft}";
+                else if (_game.Phase == DriftPhase.TurnReview)
+                    actionText.text = $"下回合 {_game.ReviewTimeLeft:0.0} 秒后";
+                else
+                    actionText.text = $"行动次数 —（+{_game.PendingBonusActions}）";
+            }
             if (eventText != null)
                 eventText.text = _game.Phase == DriftPhase.Board
                     ? $"生变倒计时 {_game.ActionsUntilEvent}/{_game.EventInterval}"
@@ -178,6 +188,7 @@ namespace StarCard.UI
             DriftPhase.Meteor => "流星定位",
             DriftPhase.RewardPick => "收获取舍",
             DriftPhase.Board => "棋盘操作",
+            DriftPhase.TurnReview => "回合结算",
             DriftPhase.GameOver => "本局结束",
             _ => "?"
         };

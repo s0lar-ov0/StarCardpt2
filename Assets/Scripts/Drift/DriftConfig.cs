@@ -17,6 +17,7 @@ namespace StarCard.Drift
         [Tooltip("一局最多多少回合，0 = 不限（只能靠归位四方位结束）")] public int maxTurns = 15;
         [Tooltip("每回合基础行动次数")] public int baseActionsPerTurn = 4;
         [Tooltip("手牌上限，超过后不再获得新牌")] public int handLimit = 5;
+        [Tooltip("回合结束后的停顿秒数，让玩家看清漂移/变换的结果。0 = 不停顿")] public float turnReviewDuration = 2f;
 
         [Header("连结 / 随机事件")]
         [Tooltip("构成连结所需的最少同方位牌数")] public int minLinkCount = 3;
