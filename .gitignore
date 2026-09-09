@@ -79,3 +79,7 @@ crashlytics-build.properties
 
 # 生成字体用的字符集清单，不必入库
 /字符集_项目用字.txt
+
+# TMP 生成字体时产出的诊断报告，会反复变动
+/[Aa]ssets/TextMesh Pro/Glyph Report.txt
+/[Aa]ssets/TextMesh Pro/Glyph Report.txt.meta
