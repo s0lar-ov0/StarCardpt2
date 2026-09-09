@@ -212,7 +212,7 @@ namespace StarCard.UI
             for (int i = 0; i < _blessingEntries.Count; i++)
             {
                 bool chosen = _blessingChoice == i;
-                _blessingEntries[i].SetLabel(chosen ? "收下" : "不要");
+                _blessingEntries[i].SetLabel(chosen ? "保留" : "舍弃");
                 _blessingEntries[i].SetHighlight(chosen);
             }
 
@@ -231,7 +231,7 @@ namespace StarCard.UI
             if (summaryText != null)
                 summaryText.text =
                     $"留下的星宿牌进入手牌（手牌上限 {_game.Config.handLimit}，当前 {_game.Hand.Count}，本次可留 {handRoom} 张，已选 {keptCards}）\n" +
-                    $"众星祝福上限 {_game.Config.blessingLimit}（当前 {_game.Blessings.Count}，本次可留 {blessRoom} 个，已选 {keptBless}）\n" +
+                    $"众星祝福上限 {_game.Config.blessingLimit}（当前 {_game.Blessings.Count}，本次可留 1 个，已选 {keptBless}）\n" +
                     "删去的星宿牌会回到卡池，之后仍可能再被流星带来。";
         }
 
