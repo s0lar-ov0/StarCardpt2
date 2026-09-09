@@ -45,6 +45,11 @@ namespace StarCard.UI
         [Tooltip("未归位时标题显示成什么，{0} 会替换成神兽名")]
         public string lockedTitleFormat = "{0}（未归位）";
 
+        [Header("Scene 视图预览")]
+        [Tooltip("选中本物体时在 Scene 里画出卡片框；众星区按这个张数预览")]
+        [Range(0, 3)]
+        public int starPreviewCount = 3;
+
         private DriftGameManager _game;
         private readonly List<BlessingCardView> _dirCards = new();
         private readonly List<BlessingCardView> _starCards = new();
@@ -156,6 +161,51 @@ namespace StarCard.UI
                 pool.Add(card);
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 在 Scene 视图里把两个分区和卡片位置画出来 —— 卡片是运行时生成的，
+        /// 编辑时看不见，只能靠 Gizmo 判断有没有重叠 / 溢出。
+        /// 选中本物体（或父物体）时才画。
+        /// </summary>
+        private void OnDrawGizmosSelected()
+        {
+            DrawRowGizmo(directionRow, 4, new Color(0.4f, 0.85f, 1f));
+            DrawRowGizmo(starRow, _game != null ? _game.Blessings.Count
+                                                : starPreviewCount, new Color(0.95f, 0.7f, 1f));
+        }
+
+        private void DrawRowGizmo(RectTransform row, int count, Color color)
+        {
+            if (row == null) return;
+
+            // 容器边框
+            Gizmos.color = new Color(color.r, color.g, color.b, 0.5f);
+            var corners = new Vector3[4];
+            row.GetWorldCorners(corners);
+            for (int i = 0; i < 4; i++) Gizmos.DrawLine(corners[i], corners[(i + 1) % 4]);
+
+            // 每张卡的框
+            float cardH = cardPrefab != null ? cardPrefab.Rect.sizeDelta.y : 72f;
+            float cardW = cardPrefab != null ? cardPrefab.Rect.sizeDelta.x : row.rect.width;
+            Gizmos.color = color;
+            for (int i = 0; i < count; i++)
+            {
+                // 容器顶边中点往下 topPadding + i*spacing
+                Vector3 topMid = (corners[1] + corners[2]) * 0.5f;
+                Vector3 down = (corners[0] - corners[1]).normalized;
+                Vector3 right = (corners[2] - corners[1]).normalized;
+                Vector3 center = topMid + down * (topPadding + i * cardSpacing);
+
+                Vector3 hx = right * (cardW * 0.5f);
+                Vector3 hy = down * (cardH * 0.5f);
+                Vector3 a = center - hx - hy, b = center + hx - hy;
+                Vector3 c = center + hx + hy, d = center - hx + hy;
+                Gizmos.DrawLine(a, b); Gizmos.DrawLine(b, c);
+                Gizmos.DrawLine(c, d); Gizmos.DrawLine(d, a);
+            }
+        }
+#endif
 
         /// <summary>卡片竖排：锚定容器顶部，从上往下。pivot 用中心，topPadding 是第一张的中心位置。</summary>
         private void Place(BlessingCardView card, int index)

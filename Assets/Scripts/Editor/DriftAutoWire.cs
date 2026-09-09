@@ -358,26 +358,35 @@ namespace StarCard.EditorTools
             if (sideH < 100f) sideH = 756f;                 // 编辑器里 rect 偶尔还没算好
 
             const float titleH = 34f;
-            float dirH = titleH + 4 * panel.cardSpacing + 14f;   // 方位祝福固定 4 张
+            const float titleTop = 6f;      // 标题距所属分区顶部
+            const float afterTitle = 8f;    // 标题与第一张卡之间的呼吸
+
+            // 卡片容器要从**标题下方**开始 —— 从分区顶部开始的话第一张卡会压住标题
+            float dirRowTop = titleTop + titleH + afterTitle;
+            float dirRowH = 4 * panel.cardSpacing + 6f;             // 方位祝福固定 4 张
+            float starTitleTop = dirRowTop + dirRowH + 10f;
+            float starRowTop = starTitleTop + titleH + afterTitle;
 
             panel.directionRow = EnsureChild(side, "DirectionRow");
-            SetTopBand(panel.directionRow, 0f, dirH);
+            SetTopBand(panel.directionRow, dirRowTop, dirRowH);
 
             panel.starRow = EnsureChild(side, "StarRow");
-            SetTopBand(panel.starRow, dirH + titleH, Mathf.Max(120f, sideH - dirH - titleH));
+            SetTopBand(panel.starRow, starRowTop, Mathf.Max(120f, sideH - starRowTop - 8f));
 
             // 复用原星语栏的两个文字物体当标题/提示，省得用户再拖
             panel.directionTitle = FindText(side, "BlessTitle");
             panel.starTitle = FindText(side, "LogTitle");
             panel.starEmptyHint = FindText(side, "BlessList");
 
-            // 标题各自钉到自己那一段的顶部
             if (panel.directionTitle != null)
-                SetTopBand((RectTransform)panel.directionTitle.transform, 6f, titleH);
+                SetTopBand((RectTransform)panel.directionTitle.transform, titleTop, titleH);
             if (panel.starTitle != null)
-                SetTopBand((RectTransform)panel.starTitle.transform, dirH + 2f, titleH);
+                SetTopBand((RectTransform)panel.starTitle.transform, starTitleTop, titleH);
             if (panel.starEmptyHint != null)
-                SetTopBand((RectTransform)panel.starEmptyHint.transform, dirH + titleH + 6f, 30f);
+                SetTopBand((RectTransform)panel.starEmptyHint.transform, starRowTop + 4f, 30f);
+
+            // 卡片在容器内从顶部半个卡高处开始（Place() 用中心 pivot）
+            panel.topPadding = 40f;
 
             // 旧的日志文本物体留着没用，隐藏掉
             var oldLog = Find(side, "LogList");
