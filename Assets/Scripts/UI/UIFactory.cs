@@ -19,7 +19,7 @@ namespace StarCard.UI
         /// Editor 工具（自动填充引用 / 提取 Prefab）填字体字段时都读这里。
         /// 场景和 prefab 里已经拖好的引用不受影响，那些是资产 guid。
         /// </summary>
-        public const string FontResourcePath = "Fonts/霞鹜文楷static";
+        public const string FontResourcePath = "Fonts/霞鹜文楷max SDF";
 
         private static Sprite _circle;
         private static Sprite _rounded;

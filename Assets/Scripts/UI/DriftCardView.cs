@@ -25,10 +25,10 @@ namespace StarCard.UI
         [Tooltip("描边框（选中金边 / 连结绿边）。盖在 face 底下、比卡牌大一圈")]
         public Image outline;
 
-        [Tooltip("宿名，例如「角」")]
+        [Tooltip("宿名，例如 角")]
         public TMP_Text nameText;
 
-        [Tooltip("左下角的「东·木」")]
+        [Tooltip("左下角的 东-木")]
         public TMP_Text cornerText;
 
         [Tooltip("整张牌的点击按钮。留空则自动用自己身上的 Button")]
@@ -82,7 +82,7 @@ namespace StarCard.UI
             _onClick = onClick;
             if (nameText != null) nameText.text = StarCardDatabase.GetChineseName(card.Name);
             if (cornerText != null)
-                cornerText.text = $"{StarCardDatabase.GetChineseDirection(card.Direction)}·{StarCardDatabase.GetChineseElement(card.Element)}";
+                cornerText.text = $"{StarCardDatabase.GetChineseDirection(card.Direction)}-{StarCardDatabase.GetChineseElement(card.Element)}";
             if (face != null)
                 face.color = Color.Lerp(MeteorPalette.ColorOfDirection(card.Direction), Color.white, faceTint);
         }

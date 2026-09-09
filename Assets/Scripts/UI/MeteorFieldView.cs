@@ -28,7 +28,7 @@ namespace StarCard.UI
         [Tooltip("Image Type 要设成 Filled / Horizontal")]
         public Image timerFill;
 
-        [Tooltip("「定位剩余 8.3 秒 | 已获…」")]
+        [Tooltip("定位剩余 8.3 秒 | 已获…")]
         public TMP_Text timerText;
 
         [Header("按钮")]
@@ -41,7 +41,7 @@ namespace StarCard.UI
         public float mediumRadius = 21f;
         public float smallRadius = 12f;
 
-        [Tooltip("拖尾长度 = 半径 × 本值")]
+        [Tooltip("拖尾长度 = 半径 x 本值")]
         public float tailLengthRatio = 7f;
 
         [Header("飘字")]
@@ -122,8 +122,8 @@ namespace StarCard.UI
             if (timerFill != null)
                 timerFill.fillAmount = _game.MeteorDuration <= 0f ? 0f : _game.MeteorTimeLeft / _game.MeteorDuration;
             if (timerText != null)
-                timerText.text = $"定位剩余 {_game.MeteorTimeLeft:0.0} 秒　|　已获：行动 +{_game.PendingBonusActions}　" +
-                                 $"星宿牌 {_game.PendingCards.Count}　祝福 {_game.PendingBlessings.Count}";
+                timerText.text = $"定位剩余 {_game.MeteorTimeLeft:0.0} 秒 | 已获：行动 +{_game.PendingBonusActions}  " +
+                                 $"星宿牌 {_game.PendingCards.Count}  祝福 {_game.PendingBlessings.Count}";
 
             _bigTimer -= dt;
             if (_bigTimer <= 0f)

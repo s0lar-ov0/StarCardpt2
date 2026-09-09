@@ -20,7 +20,7 @@ namespace StarCard.UI
         [Tooltip("格子底图。留空则自动取自己身上的 Image")]
         public Image background;
 
-        [Tooltip("封锁时显示「虚 + 剩余回合」。留空则不显示")]
+        [Tooltip("封锁时显示 虚 + 剩余回合。留空则不显示")]
         public TMP_Text label;
 
         [Tooltip("点击按钮。留空则自动取自己身上的 Button")]

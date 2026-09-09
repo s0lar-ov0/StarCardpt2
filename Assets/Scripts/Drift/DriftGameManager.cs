@@ -181,7 +181,7 @@ namespace StarCard.Drift
             _meteorDuration = ComputeMeteorDuration();
             _meteorTimeLeft = _meteorDuration;
             SetPhase(DriftPhase.Meteor);
-            Log($"—— 第 {TurnIndex} 回合 · 流星定位 ——");
+            Log($"—— 第 {TurnIndex} 回合 | 流星定位 ——");
             Notify();
         }
 
@@ -248,8 +248,8 @@ namespace StarCard.Drift
             _actionsSinceEvent = 0;
             _freeMoveUsedThisTurn = false;
 
-            if (HasBlessing(BlessingId.YuHengGather)) DrawToHand("玉衡·聚灵");
-            if (_homecomed.Contains(Direction.South)) DrawToHand("朱雀·衔火");
+            if (HasBlessing(BlessingId.YuHengGather)) DrawToHand("玉衡-聚灵");
+            if (_homecomed.Contains(Direction.South)) DrawToHand("朱雀-衔火");
 
             SetPhase(DriftPhase.Board);
             Log($"棋盘操作开始：行动次数 {ActionsLeft}，每 {EventInterval} 次行动生变。");
@@ -311,7 +311,7 @@ namespace StarCard.Drift
             var card = _hand[handIndex];
             if (!Board.Place(pos, card)) return false;
             _hand.RemoveAt(handIndex);
-            Log($"放置 {Describe(card)} → {pos}");
+            Log($"放置 {Describe(card)} 到 {pos}");
             ConsumeAction(false);
             return true;
         }
@@ -326,7 +326,7 @@ namespace StarCard.Drift
 
             bool free = HasBlessing(BlessingId.TianQuanShift) && !_freeMoveUsedThisTurn;
             if (free) _freeMoveUsedThisTurn = true;
-            Log($"移动 {Describe(card)}：{from} → {to}{(free ? "（天权·移山，免费）" : "")}");
+            Log($"移动 {Describe(card)}：{from} 到 {to}{(free ? "（天权·移山，免费）" : "")}");
             ConsumeAction(free);
             return true;
         }
@@ -339,7 +339,7 @@ namespace StarCard.Drift
             var ca = Board.GetCard(a);
             var cb = Board.GetCard(b);
             if (!Board.Swap(a, b)) return false;
-            Log($"交换 {Describe(ca)} ↔ {Describe(cb)}");
+            Log($"交换 {Describe(ca)} 与 {Describe(cb)}");
             ConsumeAction(false);
             return true;
         }
@@ -577,7 +577,7 @@ namespace StarCard.Drift
             _pendingCards.RemoveAll(c => c.Direction == dir);
 
             Score += config.scorePerHomecoming;
-            Log($"★ {StarCardDatabase.GetChineseDirection(dir)}方七宿归位！获得方位祝福「{DirectionBlessing.GetName(dir)}」（{DirectionBlessing.GetDesc(dir)}）");
+            Log($"【{StarCardDatabase.GetChineseDirection(dir)}方七宿归位】获得方位祝福 {DirectionBlessing.GetName(dir)}（{DirectionBlessing.GetDesc(dir)}）");
             Homecoming?.Invoke(dir);
             BoardShuffled?.Invoke();
         }
@@ -669,7 +669,7 @@ namespace StarCard.Drift
 
         public static string Describe(Core.StarCard card) =>
             $"{StarCardDatabase.GetChineseName(card.Name)}宿" +
-            $"({StarCardDatabase.GetChineseDirection(card.Direction)}·{StarCardDatabase.GetChineseElement(card.Element)})";
+            $"({StarCardDatabase.GetChineseDirection(card.Direction)}-{StarCardDatabase.GetChineseElement(card.Element)})";
 
         private void SetPhase(DriftPhase phase)
         {

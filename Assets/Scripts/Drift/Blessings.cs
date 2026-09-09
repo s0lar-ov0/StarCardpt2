@@ -7,14 +7,14 @@ namespace StarCard.Drift
     public enum BlessingId
     {
         None = 0,
-        YaoGuangStride,   // 摇光·续行
-        TianJiWeave,      // 天玑·织星
-        YuHengGather,     // 玉衡·聚灵
-        KaiYangSteady,    // 开阳·定星
-        TianXuanHeart,    // 天璇·连心
-        TianShuMirror,    // 天枢·镜位
-        TianQuanShift,    // 天权·移山
-        YaoGuangGaze      // 瑶光·延目
+        YaoGuangStride,   // 摇光-续行
+        TianJiWeave,      // 天玑-织星
+        YuHengGather,     // 玉衡-聚灵
+        KaiYangSteady,    // 开阳-定星
+        TianXuanHeart,    // 天璇-连心
+        TianShuMirror,    // 天枢-镜位
+        TianQuanShift,    // 天权-移山
+        YaoGuangGaze      // 瑶光-延目
     }
 
     public class BlessingDef
@@ -35,14 +35,14 @@ namespace StarCard.Drift
     {
         private static readonly List<BlessingDef> All = new()
         {
-            new BlessingDef(BlessingId.YaoGuangStride, "摇光·续行", "每回合行动次数 +1"),
-            new BlessingDef(BlessingId.TianJiWeave,    "天玑·织星", "漂移时，每张非连结牌有 50% 概率原地不动"),
-            new BlessingDef(BlessingId.YuHengGather,   "玉衡·聚灵", "每回合棋盘操作开始时，从卡池抽 1 张牌到手牌"),
-            new BlessingDef(BlessingId.KaiYangSteady,  "开阳·定星", "随机事件的触发间隔 +1 次行动"),
-            new BlessingDef(BlessingId.TianXuanHeart,  "天璇·连心", "连结所需的最少同方位牌数由 3 降为 2"),
-            new BlessingDef(BlessingId.TianShuMirror,  "天枢·镜位", "阵型模板额外允许 180° 旋转摆放"),
-            new BlessingDef(BlessingId.TianQuanShift,  "天权·移山", "每回合首次“移动”行动不消耗行动次数"),
-            new BlessingDef(BlessingId.YaoGuangGaze,   "瑶光·延目", "流星定位阶段时长 +4 秒")
+            new BlessingDef(BlessingId.YaoGuangStride, "摇光-续行", "每回合行动次数 +1"),
+            new BlessingDef(BlessingId.TianJiWeave,    "天玑-织星", "漂移时，每张非连结牌有 50% 概率原地不动"),
+            new BlessingDef(BlessingId.YuHengGather,   "玉衡-聚灵", "每回合棋盘操作开始时，从卡池抽 1 张牌到手牌"),
+            new BlessingDef(BlessingId.KaiYangSteady,  "开阳-定星", "随机事件的触发间隔 +1 次行动"),
+            new BlessingDef(BlessingId.TianXuanHeart,  "天璇-连心", "连结所需的最少同方位牌数由 3 降为 2"),
+            new BlessingDef(BlessingId.TianShuMirror,  "天枢-镜位", "阵型模板额外允许 180° 旋转摆放"),
+            new BlessingDef(BlessingId.TianQuanShift,  "天权-移山", "每回合首次“移动”行动不消耗行动次数"),
+            new BlessingDef(BlessingId.YaoGuangGaze,   "瑶光-延目", "流星定位阶段时长 +4 秒")
         };
 
         public static IReadOnlyList<BlessingDef> AllDefs => All;
@@ -81,10 +81,10 @@ namespace StarCard.Drift
 
         public static string GetName(Direction dir) => dir switch
         {
-            Direction.East => "青龙·奋鳞",
-            Direction.North => "玄武·镇渊",
-            Direction.West => "白虎·啸风",
-            Direction.South => "朱雀·衔火",
+            Direction.East => "青龙-奋鳞",
+            Direction.North => "玄武-镇渊",
+            Direction.West => "白虎-啸风",
+            Direction.South => "朱雀-衔火",
             _ => "?"
         };
 

@@ -16,7 +16,7 @@ namespace StarCard.UI
         public OffscreenPanel panel;
 
         [Header("控件（场景物体）")]
-        [Tooltip("「四方归位 · 星海归宁」/「时辰已尽」")]
+        [Tooltip("四方归位-星海归宁 / 时辰已尽")]
         public TMP_Text titleText;
 
         [Tooltip("总分 / 归位方位 / 回合数 / 卡池余牌")]
@@ -26,7 +26,7 @@ namespace StarCard.UI
         public Button againButton;
 
         [Header("标题文案")]
-        public string winTitle = "四方归位 · 星海归宁";
+        public string winTitle = "四方归位-星海归宁";
         public string loseTitle = "时辰已尽";
 
         [Tooltip("开局时是否隐藏")]
@@ -71,9 +71,9 @@ namespace StarCard.UI
             var sb = new StringBuilder();
             sb.AppendLine($"总分：{_game.Score}");
             sb.AppendLine($"归位方位：{_game.Homecomed.Count} / 4");
-            sb.Append("　　");
+            sb.Append("    ");
             foreach (Direction dir in Enum.GetValues(typeof(Direction)))
-                sb.Append($"{DirectionBlessing.GetBeastName(dir)}{(_game.IsHomecomed(dir) ? "✓" : "×")}　");
+                sb.Append($"{DirectionBlessing.GetBeastName(dir)}{(_game.IsHomecomed(dir) ? "成" : "未")}  ");
             sb.AppendLine();
             sb.AppendLine($"经历回合：{_game.TurnIndex}");
             sb.AppendLine($"卡池余牌：{_game.Pool.Count}");

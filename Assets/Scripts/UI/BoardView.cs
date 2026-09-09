@@ -80,7 +80,7 @@ namespace StarCard.UI
             if (_cellMap.Count != expected)
             {
                 Debug.LogError($"[BoardView] 格子数对不上：拖进来 {(cells == null ? 0 : cells.Length)} 个、" +
-                               $"去重后 {_cellMap.Count} 个，棋盘需要 {expected} 个（{_game.Config.rows}×{_game.Config.cols}）。" +
+                               $"去重后 {_cellMap.Count} 个，棋盘需要 {expected} 个（{_game.Config.rows}x{_game.Config.cols}）。" +
                                "常见原因：漏拖、或多个格子的 row/col 填成了同一个坐标。", this);
             }
 

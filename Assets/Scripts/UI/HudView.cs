@@ -19,14 +19,14 @@ namespace StarCard.UI
         [Tooltip("阶段 棋盘操作")] public TMP_Text phaseText;
         [Tooltip("行动次数 4")] public TMP_Text actionText;
         [Tooltip("生变倒计时 2/5")] public TMP_Text eventText;
-        [Tooltip("卡池 18 · 棋盘 7/14")] public TMP_Text poolText;
+        [Tooltip("卡池 18 | 棋盘 7/14")] public TMP_Text poolText;
         [Tooltip("分数 1240")] public TMP_Text scoreText;
 
         [Header("四方位进度（顺序：东 北 西 南，对应 青龙 玄武 白虎 朱雀）")]
         [Tooltip("四个 Chip 的底图，会按方位色染色")]
         public Image[] directionChips = new Image[4];
 
-        [Tooltip("四个 Chip 里的文字，显示「青龙 3/7」")]
+        [Tooltip("四个 Chip 里的文字，显示 青龙 3/7")]
         public TMP_Text[] directionTexts = new TMP_Text[4];
 
         [Header("右侧栏")]
@@ -95,7 +95,7 @@ namespace StarCard.UI
         private void OnRandomEvent(RandomEventDef def) => ShowBanner($"【随机事件】{def.Name} — {def.Desc}");
 
         private void OnHomecoming(Direction dir) =>
-            ShowBanner($"★ {DirectionBlessing.GetBeastName(dir)}归位！　{DirectionBlessing.GetName(dir)}：{DirectionBlessing.GetDesc(dir)}");
+            ShowBanner($"【{DirectionBlessing.GetBeastName(dir)}归位】  {DirectionBlessing.GetName(dir)}：{DirectionBlessing.GetDesc(dir)}");
 
         public void ShowBanner(string content)
         {
@@ -130,7 +130,7 @@ namespace StarCard.UI
                     ? $"生变倒计时 {_game.ActionsUntilEvent}/{_game.EventInterval}"
                     : $"生变间隔 {_game.EventInterval}";
             if (poolText != null)
-                poolText.text = $"卡池 {_game.Pool.Count} · 棋盘 {_game.Board.CardCount}/{_game.Config.boardCardLimit}";
+                poolText.text = $"卡池 {_game.Pool.Count} | 棋盘 {_game.Board.CardCount}/{_game.Config.boardCardLimit}";
             if (scoreText != null)
                 scoreText.text = $"分数 {_game.Score}";
 
@@ -162,8 +162,8 @@ namespace StarCard.UI
                     for (int i = 0; i < _game.Blessings.Count; i++)
                     {
                         var def = BlessingDatabase.Get(_game.Blessings[i]);
-                        sb.AppendLine($"· {def.Name}");
-                        sb.AppendLine($"　{def.Desc}");
+                        sb.AppendLine($"- {def.Name}");
+                        sb.AppendLine($"  {def.Desc}");
                     }
                     blessingText.text = sb.ToString();
                 }

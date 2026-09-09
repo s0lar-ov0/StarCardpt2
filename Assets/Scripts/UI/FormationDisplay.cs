@@ -21,9 +21,9 @@ namespace StarCard.UI
         public Direction direction = Direction.East;
 
         [Header("子控件（场景物体）")]
-        [Tooltip("「青龙（东方）」")] public TMP_Text nameText;
-        [Tooltip("「角 亢 氐 房 心 尾 箕」")] public TMP_Text mansionsText;
-        [Tooltip("「归位祝福：…」")] public TMP_Text blessingText;
+        [Tooltip("青龙（东方）")] public TMP_Text nameText;
+        [Tooltip("角 亢 氐 房 心 尾 箕")] public TMP_Text mansionsText;
+        [Tooltip("归位祝福：…")] public TMP_Text blessingText;
 
         [Tooltip("模板小格生成到这个物体下。一般拖本物体下的 Grid")]
         public RectTransform grid;

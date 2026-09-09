@@ -28,7 +28,7 @@ namespace StarCard.Drift
         [Tooltip("大型白色流星生成间隔（秒）")] public float bigSpawnInterval = 3.2f;
         [Tooltip("中型属性流星生成间隔（秒）")] public float mediumSpawnInterval = 1.1f;
         [Tooltip("小型粉色流星生成间隔（秒）")] public float smallSpawnInterval = 4.5f;
-        [Tooltip("大型流星速度（像素/秒，1920×1080 参考分辨率下）")] public float bigSpeed = 110f;
+        [Tooltip("大型流星速度（像素/秒，1920x1080 参考分辨率下）")] public float bigSpeed = 110f;
         [Tooltip("中型流星速度")] public float mediumSpeed = 230f;
         [Tooltip("小型流星速度")] public float smallSpeed = 380f;
 

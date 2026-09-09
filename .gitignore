@@ -76,3 +76,6 @@ crashlytics-build.properties
 # 内部协作文档，不上传（只在本地 / 团队内传阅）
 /DEV_LOG.md
 /SETUP_GUIDE.md
+
+# 生成字体用的字符集清单，不必入库
+/字符集_项目用字.txt
