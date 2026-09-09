@@ -1,0 +1,185 @@
+using System;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using StarCard.Core;
+using StarCard.Drift;
+
+namespace StarCard.UI
+{
+    /// <summary>
+    /// 顶栏 + 右侧栏 + 事件横幅 + 三个按钮。挂在场景里的 Hud 上。
+    /// 全部控件都是场景物体，Inspector 拖进来即可；拖漏的字段会被跳过（不报错，只是不更新）。
+    /// </summary>
+    public class HudView : MonoBehaviour
+    {
+        [Header("顶栏文字")]
+        [Tooltip("回合 3/15")] public TMP_Text turnText;
+        [Tooltip("阶段 棋盘操作")] public TMP_Text phaseText;
+        [Tooltip("行动次数 4")] public TMP_Text actionText;
+        [Tooltip("生变倒计时 2/5")] public TMP_Text eventText;
+        [Tooltip("卡池 18 · 棋盘 7/14")] public TMP_Text poolText;
+        [Tooltip("分数 1240")] public TMP_Text scoreText;
+
+        [Header("四方位进度（顺序：东 北 西 南，对应 青龙 玄武 白虎 朱雀）")]
+        [Tooltip("四个 Chip 的底图，会按方位色染色")]
+        public Image[] directionChips = new Image[4];
+
+        [Tooltip("四个 Chip 里的文字，显示「青龙 3/7」")]
+        public TMP_Text[] directionTexts = new TMP_Text[4];
+
+        [Header("右侧栏")]
+        [Tooltip("已持有的众星祝福列表")] public TMP_Text blessingText;
+        [Tooltip("星语日志")] public TMP_Text logText;
+
+        [Header("按钮")]
+        public Button endTurnButton;
+        public Button helpButton;
+        public Button restartButton;
+
+        [Header("事件横幅")]
+        [Tooltip("横幅根物体，平时 SetActive(false)")] public GameObject banner;
+        [Tooltip("横幅里的文字")] public TMP_Text bannerText;
+        [Tooltip("横幅停留秒数")] public float bannerDuration = 2.6f;
+
+        [Header("日志")]
+        [Tooltip("星语最多显示几行")] public int maxLogLines = 16;
+
+        private DriftGameManager _game;
+        private readonly List<string> _logLines = new();
+        private float _bannerLife;
+
+        /// <summary>directionChips / directionTexts 的下标顺序，与 Direction 枚举一致。</summary>
+        private static readonly Direction[] DirOrder =
+        {
+            Direction.East, Direction.North, Direction.West, Direction.South
+        };
+
+        public void Init(DriftGameManager game, Action onRestart, Action onToggleHelp)
+        {
+            _game = game;
+
+            if (endTurnButton != null) endTurnButton.onClick.AddListener(() => _game.EndTurnByPlayer());
+            if (helpButton != null) helpButton.onClick.AddListener(() => onToggleHelp?.Invoke());
+            if (restartButton != null) restartButton.onClick.AddListener(() => onRestart?.Invoke());
+            if (banner != null) banner.SetActive(false);
+
+            _game.StateChanged += Refresh;
+            _game.Logged += OnLog;
+            _game.RandomEventFired += OnRandomEvent;
+            _game.Homecoming += OnHomecoming;
+            _game.PhaseChanged += OnPhaseChanged;
+            Refresh();
+        }
+
+        private void OnDestroy()
+        {
+            if (_game == null) return;
+            _game.StateChanged -= Refresh;
+            _game.Logged -= OnLog;
+            _game.RandomEventFired -= OnRandomEvent;
+            _game.Homecoming -= OnHomecoming;
+            _game.PhaseChanged -= OnPhaseChanged;
+        }
+
+        private void OnPhaseChanged(DriftPhase phase) => Refresh();
+
+        private void OnLog(string line)
+        {
+            _logLines.Add(line);
+            while (_logLines.Count > Mathf.Max(1, maxLogLines)) _logLines.RemoveAt(0);
+            if (logText != null) logText.text = string.Join("\n", _logLines);
+        }
+
+        private void OnRandomEvent(RandomEventDef def) => ShowBanner($"【随机事件】{def.Name} — {def.Desc}");
+
+        private void OnHomecoming(Direction dir) =>
+            ShowBanner($"★ {DirectionBlessing.GetBeastName(dir)}归位！　{DirectionBlessing.GetName(dir)}：{DirectionBlessing.GetDesc(dir)}");
+
+        public void ShowBanner(string content)
+        {
+            if (banner == null) return;
+            if (bannerText != null) bannerText.text = content;
+            banner.SetActive(true);
+            _bannerLife = bannerDuration;
+        }
+
+        private void Update()
+        {
+            if (banner == null || !banner.activeSelf) return;
+            _bannerLife -= Time.deltaTime;
+            if (_bannerLife <= 0f) banner.SetActive(false);
+        }
+
+        public void Refresh()
+        {
+            if (_game == null || _game.Board == null) return;
+
+            int maxTurns = _game.Config.maxTurns;
+            if (turnText != null)
+                turnText.text = maxTurns > 0 ? $"回合 {_game.TurnIndex}/{maxTurns}" : $"回合 {_game.TurnIndex}";
+            if (phaseText != null)
+                phaseText.text = "阶段 " + PhaseName(_game.Phase);
+            if (actionText != null)
+                actionText.text = _game.Phase == DriftPhase.Board
+                    ? $"行动次数 {_game.ActionsLeft}"
+                    : $"行动次数 —（+{_game.PendingBonusActions}）";
+            if (eventText != null)
+                eventText.text = _game.Phase == DriftPhase.Board
+                    ? $"生变倒计时 {_game.ActionsUntilEvent}/{_game.EventInterval}"
+                    : $"生变间隔 {_game.EventInterval}";
+            if (poolText != null)
+                poolText.text = $"卡池 {_game.Pool.Count} · 棋盘 {_game.Board.CardCount}/{_game.Config.boardCardLimit}";
+            if (scoreText != null)
+                scoreText.text = $"分数 {_game.Score}";
+
+            for (int i = 0; i < DirOrder.Length; i++)
+            {
+                var dir = DirOrder[i];
+                bool home = _game.IsHomecomed(dir);
+                int best = _game.Links.BestCount.TryGetValue(dir, out var b) ? b : 0;
+                var c = MeteorPalette.ColorOfDirection(dir);
+
+                if (directionTexts != null && i < directionTexts.Length && directionTexts[i] != null)
+                    directionTexts[i].text = home
+                        ? $"{DirectionBlessing.GetBeastName(dir)}\n已归位"
+                        : $"{DirectionBlessing.GetBeastName(dir)}\n{best}/7";
+
+                if (directionChips != null && i < directionChips.Length && directionChips[i] != null)
+                    directionChips[i].color = home ? new Color(c.r, c.g, c.b, 0.55f) : new Color(c.r, c.g, c.b, 0.14f);
+            }
+
+            if (blessingText != null)
+            {
+                if (_game.Blessings.Count == 0)
+                {
+                    blessingText.text = "（尚无。点中小型粉色流星可获得）";
+                }
+                else
+                {
+                    var sb = new System.Text.StringBuilder();
+                    for (int i = 0; i < _game.Blessings.Count; i++)
+                    {
+                        var def = BlessingDatabase.Get(_game.Blessings[i]);
+                        sb.AppendLine($"· {def.Name}");
+                        sb.AppendLine($"　{def.Desc}");
+                    }
+                    blessingText.text = sb.ToString();
+                }
+            }
+
+            if (endTurnButton != null) endTurnButton.interactable = _game.Phase == DriftPhase.Board;
+        }
+
+        public static string PhaseName(DriftPhase phase) => phase switch
+        {
+            DriftPhase.Ready => "待开局",
+            DriftPhase.Meteor => "流星定位",
+            DriftPhase.RewardPick => "收获取舍",
+            DriftPhase.Board => "棋盘操作",
+            DriftPhase.GameOver => "本局结束",
+            _ => "?"
+        };
+    }
+}
