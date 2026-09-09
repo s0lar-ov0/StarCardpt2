@@ -155,12 +155,15 @@ namespace StarCard.Drift
         {
             get
             {
+                // 注意：这里**不判断"本回合是否已拿到"** ——
+                // 那条限制在 CollectMeteor 里拦（点了会提示"本回合已有祝福待取"）。
+                // 如果连生成都掐掉，玩家点中第一颗后剩下的定位时间里粉色流星
+                // 会彻底消失，看起来像"整局只有一颗"。
                 if (_blessings.Count < config.blessingLimit)
-                {
-                    if (_pendingBlessings.Count > 0) return false;      // 本回合已抽到一个
                     return BlessingDatabase.AllDefs.Count > _blessings.Count;
-                }
-                return HasUpgradableBlessing && !_upgradeOffered;
+
+                // 三个都满级了才真的没必要再刷
+                return HasUpgradableBlessing;
             }
         }
 

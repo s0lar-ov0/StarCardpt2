@@ -216,7 +216,7 @@ namespace StarCard.UI
                     _upgradeEntries[i].SetLabel("已满级");
                     continue;
                 }
-                _upgradeEntries[i].SetLabel(_upgradeChoice == i ? "升级" : "不升");
+                _upgradeEntries[i].SetLabel(_upgradeChoice == i ? "升级" : "未分配");
                 _upgradeEntries[i].SetHighlight(_upgradeChoice == i);
             }
 
