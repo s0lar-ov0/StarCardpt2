@@ -71,12 +71,12 @@ namespace StarCard.EditorTools
             WireOffscreenPanels(boot);
 
             if (boot.hud != null) boot.blessingPanel = boot.hud.blessingPanel;
+            WirePrefabFields(boot);
 
             EditorUtility.SetDirty(boot);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(boot.gameObject.scene);
             Debug.Log("自动填充完成。请检查 Console 里的警告 —— 那些是场景里没找到、需要你手动补的引用。\n" +
-                      "prefab 字段（cardPrefab / cardEntryPrefab / blessingEntryPrefab / cellPrefab）必须手动拖，" +
-                      "见 SETUP_GUIDE 第 3 节。", boot);
+                      "Assets/Prefabs/ 下已存在的 prefab 会自动填进对应字段；还没生成的先跑一次「提取 Prefab」。", boot);
         }
 
         /// <summary>
@@ -162,6 +162,65 @@ namespace StarCard.EditorTools
             }
         }
 
+        /// <summary>
+        /// 把 Assets/Prefabs/ 下已有的 prefab 填进各字段（只填空着的，不覆盖你手动指定的）。
+        /// 这样「自动填充」和「提取 Prefab」两个菜单项的执行顺序就不重要了 ——
+        /// 先跑哪个都行，缺的那次跑完再跑一遍另一个即可。
+        /// </summary>
+        private static void WirePrefabFields(DriftGameBootstrap boot)
+        {
+            var card = Load<DriftCardView>("StarCardView");
+            var cell = Load<Image>("FormationCell");
+            var cardEntry = Load<RewardCardEntry>("RewardCardEntry");
+            var blessEntry = Load<RewardBlessingEntry>("RewardBlessingEntry");
+            var blessCard = Load<BlessingCardView>("BlessingCard");
+
+            if (boot.board != null && boot.board.cardPrefab == null && card != null)
+            {
+                boot.board.cardPrefab = card;
+                EditorUtility.SetDirty(boot.board);
+            }
+            if (boot.hand != null && boot.hand.cardPrefab == null && card != null)
+            {
+                boot.hand.cardPrefab = card;
+                EditorUtility.SetDirty(boot.hand);
+            }
+            if (boot.rewardPicker != null)
+            {
+                if (boot.rewardPicker.cardEntryPrefab == null && cardEntry != null)
+                    boot.rewardPicker.cardEntryPrefab = cardEntry;
+                if (boot.rewardPicker.blessingEntryPrefab == null && blessEntry != null)
+                    boot.rewardPicker.blessingEntryPrefab = blessEntry;
+                EditorUtility.SetDirty(boot.rewardPicker);
+            }
+            if (boot.helpPanel != null && boot.helpPanel.formations != null && cell != null)
+            {
+                foreach (var f in boot.helpPanel.formations)
+                {
+                    if (f == null || f.cellPrefab != null) continue;
+                    f.cellPrefab = cell;
+                    EditorUtility.SetDirty(f);
+                }
+            }
+            if (boot.blessingPanel != null && boot.blessingPanel.cardPrefab == null && blessCard != null)
+            {
+                boot.blessingPanel.cardPrefab = blessCard;
+                EditorUtility.SetDirty(boot.blessingPanel);
+            }
+
+            int missing = 0;
+            if (card == null) missing++;
+            if (cell == null) missing++;
+            if (cardEntry == null) missing++;
+            if (blessEntry == null) missing++;
+            if (blessCard == null) missing++;
+            if (missing > 0)
+                Debug.LogWarning($"[自动填充] Assets/Prefabs/ 下有 {missing} 个 prefab 还不存在 —— " +
+                                 "跑一次「提取 Prefab（只需跑一次）」生成它们，然后再跑本菜单即可。");
+        }
+
+        private static T Load<T>(string name) where T : Component =>
+            AssetDatabase.LoadAssetAtPath<T>($"Assets/Prefabs/{name}.prefab");
         // ---------- 各面板 ----------
         private static void WireBoard(BoardView board)
         {
@@ -306,8 +365,14 @@ namespace StarCard.EditorTools
             var oldLog = Find(side, "LogList");
             if (oldLog != null) oldLog.gameObject.SetActive(false);
 
+            // prefab 字段：优先用已存在的资产，省掉"必须先跑提取"的顺序依赖
             if (panel.cardPrefab == null)
-                Warn(panel, "祝福卡片 prefab 还没拖 —— 跑一次「提取 Prefab」会自动补上");
+            {
+                panel.cardPrefab = AssetDatabase.LoadAssetAtPath<BlessingCardView>(
+                    "Assets/Prefabs/BlessingCard.prefab");
+                if (panel.cardPrefab == null)
+                    Warn(panel, "找不到 Assets/Prefabs/BlessingCard.prefab —— 跑一次「提取 Prefab」会生成它，之后再跑本菜单即可");
+            }
 
             EditorUtility.SetDirty(panel);
         }

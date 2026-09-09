@@ -67,12 +67,19 @@ namespace StarCard.EditorTools
                 }
             }
 
-            // 祝福面板的卡片 prefab
+            // 祝福面板的卡片 prefab。面板组件是「自动填充引用」挂的，
+            // 所以先跑本菜单时它还不存在 —— 那时跳过即可，
+            // 之后跑「自动填充」会主动去 Assets/Prefabs/ 把这个 prefab 捡回来。
             var panel = Object.FindObjectOfType<BlessingPanelView>();
             if (panel != null)
             {
                 panel.cardPrefab = blessCard;
                 EditorUtility.SetDirty(panel);
+            }
+            else if (blessCard != null)
+            {
+                Debug.Log("[提取 Prefab] 场景里还没有 BlessingPanelView，BlessingCard.prefab 已生成但未填引用。" +
+                          "跑一次「自动填充选中物体的引用」就会自动接上。");
             }
 
             AssetDatabase.SaveAssets();
