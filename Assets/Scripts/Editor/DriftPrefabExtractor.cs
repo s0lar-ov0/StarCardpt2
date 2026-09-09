@@ -39,6 +39,7 @@ namespace StarCard.EditorTools
             // 所以你要是已经手动改过条目样式，重跑前先备份，或者干脆把下面两行注释掉。
             var cardEntry = BuildRewardCardEntry(cardPrefab);
             var blessEntry = BuildRewardBlessingEntry();
+            var blessCard = BuildBlessingCard();
 
             if (boot.board != null)
             {
@@ -66,16 +67,26 @@ namespace StarCard.EditorTools
                 }
             }
 
+            // 祝福面板的卡片 prefab
+            var panel = Object.FindObjectOfType<BlessingPanelView>();
+            if (panel != null)
+            {
+                panel.cardPrefab = blessCard;
+                EditorUtility.SetDirty(panel);
+            }
+
             AssetDatabase.SaveAssets();
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(boot.gameObject.scene);
 
-            bool allOk = cardPrefab != null && cellPrefab != null && cardEntry != null && blessEntry != null;
+            bool allOk = cardPrefab != null && cellPrefab != null && cardEntry != null
+                         && blessEntry != null && blessCard != null;
             if (allOk)
-                Debug.Log($"Prefab 提取完成，4 个都存在 {PrefabDir}/，引用已填回。场景里用来提 prefab 的临时物体已删除。\n" +
+                Debug.Log($"Prefab 提取完成，5 个都存在 {PrefabDir}/，引用已填回。场景里用来提 prefab 的临时物体已删除。\n" +
                           "以后想改牌面/条目的样子，直接双击对应 prefab 编辑即可。", boot);
             else
                 Debug.LogWarning($"Prefab 部分失败：卡牌={Ok(cardPrefab)} 阵型格={Ok(cellPrefab)} " +
-                                 $"牌条目={Ok(cardEntry)} 祝福条目={Ok(blessEntry)}。看上面的报错，修完再跑一次。", boot);
+                                 $"牌条目={Ok(cardEntry)} 祝福条目={Ok(blessEntry)} 祝福卡片={Ok(blessCard)}。" +
+                                 "看上面的报错，修完再跑一次。", boot);
         }
 
         private static string Ok(Object o) => o != null ? "✓" : "✗";
@@ -252,6 +263,47 @@ namespace StarCard.EditorTools
             var saved = Save(root, "RewardBlessingEntry");
             Object.DestroyImmediate(root);
             return saved == null ? null : saved.GetComponent<RewardBlessingEntry>();
+        }
+
+        /// <summary>祝福卡片 prefab：左侧圆形图标 + 右侧「名称-等级」和描述。场景里没有现成的，新建。</summary>
+        private static BlessingCardView BuildBlessingCard()
+        {
+            var root = new GameObject("BlessingCard", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            var rt = (RectTransform)root.transform;
+            rt.sizeDelta = new Vector2(348f, 72f);
+
+            var bg = root.GetComponent<Image>();
+            bg.sprite = Resources.Load<Sprite>("Arts/UI/Rounded");
+            bg.type = Image.Type.Sliced;
+            bg.color = new Color(1f, 1f, 1f, 0.14f);
+
+            var view = root.AddComponent<BlessingCardView>();
+            view.background = bg;
+            view.canvasGroup = root.GetComponent<CanvasGroup>();
+
+            // 圆形图标占位（以后换美术图就替 Sprite）
+            var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+            iconGo.transform.SetParent(root.transform, false);
+            var irt = (RectTransform)iconGo.transform;
+            irt.anchorMin = irt.anchorMax = new Vector2(0f, 0.5f);
+            irt.pivot = new Vector2(0f, 0.5f);
+            irt.sizeDelta = new Vector2(56f, 56f);
+            irt.anchoredPosition = new Vector2(8f, 0f);
+            var icon = iconGo.GetComponent<Image>();
+            icon.sprite = Resources.Load<Sprite>("Arts/UI/Circle");
+            icon.color = new Color(0.85f, 0.85f, 0.88f, 0.9f);
+            view.icon = icon;
+
+            view.titleText = MakeText(root.transform, "Title", "名称-等级", 22f,
+                                      new Color(1f, 0.97f, 0.9f), new Vector2(250f, 26f), new Vector2(40f, 12f));
+            view.titleText.alignment = TMPro.TextAlignmentOptions.Left;
+            view.descText = MakeText(root.transform, "Desc", "效果描述", 17f,
+                                     new Color(1f, 1f, 1f, 0.8f), new Vector2(250f, 34f), new Vector2(40f, -14f));
+            view.descText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+
+            var saved = Save(root, "BlessingCard");
+            Object.DestroyImmediate(root);
+            return saved == null ? null : saved.GetComponent<BlessingCardView>();
         }
 
         // ---------- 小工具 ----------

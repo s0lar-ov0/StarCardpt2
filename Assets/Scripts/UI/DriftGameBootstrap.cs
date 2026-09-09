@@ -18,6 +18,9 @@ namespace StarCard.UI
         public BoardView board;
         public HandView hand;
         public HudView hud;
+
+        [Tooltip("右侧祝福面板（取代原来的星语栏）。一般在 Hud/SidePanel 上")]
+        public BlessingPanelView blessingPanel;
         public MeteorFieldView meteorField;
         public RewardPickerView rewardPicker;
         public HelpPanelView helpPanel;
@@ -71,6 +74,10 @@ namespace StarCard.UI
 
             if (helpPanel != null) helpPanel.Init();
             if (gameOver != null) gameOver.Init(_game, Restart);
+
+            if (blessingPanel == null && hud != null) blessingPanel = hud.blessingPanel;
+            if (blessingPanel != null) blessingPanel.Init(_game);
+            else Debug.LogWarning("[DriftGameBootstrap] blessingPanel 没拖，右侧不会显示祝福。", this);
 
             if (hud != null) hud.Init(_game, Restart, ToggleHelp);
             else Debug.LogWarning("[DriftGameBootstrap] hud 没拖，顶栏和按钮都不会工作。", this);

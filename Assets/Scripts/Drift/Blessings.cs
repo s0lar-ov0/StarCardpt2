@@ -67,7 +67,16 @@ namespace StarCard.Drift
         }
     }
 
-    /// <summary>方位祝福（该方位“归位”后永久获得）。</summary>
+    /// <summary>
+    /// 方位祝福：该方位七宿「归位」后永久获得。
+    /// 效果统一为**屏蔽一类随机事件** —— 抽到被屏蔽的事件时，该事件不触发。
+    ///
+    ///   青龙（东）→ 左右平移      白虎（西）→ 上下平移
+    ///   朱雀（南）→ 九宫格旋转    玄武（北）→ 对称变换
+    ///
+    /// 八个随机事件正好被四个方位两两分掉，所以四方全归位时所有事件都失效
+    /// —— 但那时已经通关了。
+    /// </summary>
     public static class DirectionBlessing
     {
         public static string GetBeastName(Direction dir) => dir switch
@@ -81,20 +90,30 @@ namespace StarCard.Drift
 
         public static string GetName(Direction dir) => dir switch
         {
-            Direction.East => "青龙-奋鳞",
-            Direction.North => "玄武-镇渊",
-            Direction.West => "白虎-啸风",
-            Direction.South => "朱雀-衔火",
+            Direction.East => "青龙-镇河",
+            Direction.North => "玄武-定衡",
+            Direction.West => "白虎-锁枢",
+            Direction.South => "朱雀-静斗",
             _ => "?"
         };
 
         public static string GetDesc(Direction dir) => dir switch
         {
-            Direction.East => "行动次数 +2",
-            Direction.North => "漂移时随机半数非连结牌原地不动",
-            Direction.West => "流星定位阶段时长 +5 秒",
-            Direction.South => "每回合棋盘操作开始时，从卡池抽 1 张牌到手牌",
+            Direction.East => "左右平移的随机事件不再发生",
+            Direction.North => "对称变换的随机事件不再发生",
+            Direction.West => "上下平移的随机事件不再发生",
+            Direction.South => "九宫格旋转的随机事件不再发生",
             _ => ""
+        };
+
+        /// <summary>该方位祝福是否屏蔽这个随机事件。</summary>
+        public static bool Blocks(Direction dir, RandomEventId id) => dir switch
+        {
+            Direction.East  => id == RandomEventId.ShiftLeft || id == RandomEventId.ShiftRight,
+            Direction.West  => id == RandomEventId.ShiftUp   || id == RandomEventId.ShiftDown,
+            Direction.South => id == RandomEventId.RotateClockwise || id == RandomEventId.RotateCounter,
+            Direction.North => id == RandomEventId.MirrorVertical  || id == RandomEventId.MirrorHorizontal,
+            _ => false
         };
     }
 }

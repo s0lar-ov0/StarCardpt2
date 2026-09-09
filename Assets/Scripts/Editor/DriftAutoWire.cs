@@ -70,6 +70,8 @@ namespace StarCard.EditorTools
             WireGameOver(boot.gameOver);
             WireOffscreenPanels(boot);
 
+            if (boot.hud != null) boot.blessingPanel = boot.hud.blessingPanel;
+
             EditorUtility.SetDirty(boot);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(boot.gameObject.scene);
             Debug.Log("自动填充完成。请检查 Console 里的警告 —— 那些是场景里没找到、需要你手动补的引用。\n" +
@@ -260,10 +262,13 @@ namespace StarCard.EditorTools
             }
             else Warn(hud, "Hud/TopBar 找不到");
 
+            // 右侧栏现在是祝福面板（原来的星语日志已移除）
             if (side != null)
             {
-                hud.blessingText = FindText(side, "BlessList");
-                hud.logText = FindText(side, "LogList");
+                var panel = side.GetComponent<BlessingPanelView>();
+                if (panel == null) panel = Undo.AddComponent<BlessingPanelView>(side.gameObject);
+                WireBlessingPanel(panel, side);
+                hud.blessingPanel = panel;
             }
             else Warn(hud, "Hud/SidePanel 找不到");
 
@@ -280,6 +285,47 @@ namespace StarCard.EditorTools
             else Warn(hud, "Hud/Banner 找不到");
 
             EditorUtility.SetDirty(hud);
+        }
+
+        /// <summary>
+        /// 祝福面板：需要两个容器（方位/众星）。场景里没有就现建 ——
+        /// 这是唯一破例创建物体的地方，因为原来的星语栏结构（BlessList/LogList）
+        /// 跟新面板对不上，让用户手搭两个空物体反而更啰嗦。
+        /// </summary>
+        private static void WireBlessingPanel(BlessingPanelView panel, Transform side)
+        {
+            panel.directionRow = EnsureChild(side, "DirectionRow");
+            panel.starRow = EnsureChild(side, "StarRow");
+
+            // 复用原星语栏的两个文字物体当标题/提示，省得用户再拖
+            panel.directionTitle = FindText(side, "BlessTitle");
+            panel.starTitle = FindText(side, "LogTitle");
+            panel.starEmptyHint = FindText(side, "BlessList");
+
+            // 旧的日志文本物体留着没用，隐藏掉
+            var oldLog = Find(side, "LogList");
+            if (oldLog != null) oldLog.gameObject.SetActive(false);
+
+            if (panel.cardPrefab == null)
+                Warn(panel, "祝福卡片 prefab 还没拖 —— 跑一次「提取 Prefab」会自动补上");
+
+            EditorUtility.SetDirty(panel);
+        }
+
+        /// <summary>找不到就建一个铺满父物体的空 RectTransform。</summary>
+        private static RectTransform EnsureChild(Transform parent, string name)
+        {
+            var t = parent.Find(name) as RectTransform;
+            if (t != null) return t;
+            var go = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            return rt;
         }
 
         private static void WireMeteorField(MeteorFieldView field)

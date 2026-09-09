@@ -39,5 +39,9 @@ namespace StarCard.Drift
 
         [Header("随机数")]
         [Tooltip("0 = 用时间做种子；非 0 = 固定种子，便于复现 bug")] public int randomSeed = 0;
+
+        [Header("调试")]
+        [Tooltip("把游戏过程日志打到 Console。右侧星语栏已移除，想看过程就勾上这个")]
+        public bool logToConsole = false;
     }
 }

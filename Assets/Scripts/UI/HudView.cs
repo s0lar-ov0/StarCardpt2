@@ -30,8 +30,8 @@ namespace StarCard.UI
         public TMP_Text[] directionTexts = new TMP_Text[4];
 
         [Header("右侧栏")]
-        [Tooltip("已持有的众星祝福列表")] public TMP_Text blessingText;
-        [Tooltip("星语日志")] public TMP_Text logText;
+        [Tooltip("祝福面板（取代原来的星语栏）。由 BlessingPanelView 自己管，Hud 不碰它")]
+        public BlessingPanelView blessingPanel;
 
         [Header("按钮")]
         public Button endTurnButton;
@@ -44,10 +44,8 @@ namespace StarCard.UI
         [Tooltip("横幅停留秒数")] public float bannerDuration = 2.6f;
 
         [Header("日志")]
-        [Tooltip("星语最多显示几行")] public int maxLogLines = 16;
 
         private DriftGameManager _game;
-        private readonly List<string> _logLines = new();
         private float _bannerLife;
 
         /// <summary>directionChips / directionTexts 的下标顺序，与 Direction 枚举一致。</summary>
@@ -66,7 +64,6 @@ namespace StarCard.UI
             if (banner != null) banner.SetActive(false);
 
             _game.StateChanged += Refresh;
-            _game.Logged += OnLog;
             _game.RandomEventFired += OnRandomEvent;
             _game.Homecoming += OnHomecoming;
             _game.PhaseChanged += OnPhaseChanged;
@@ -77,20 +74,12 @@ namespace StarCard.UI
         {
             if (_game == null) return;
             _game.StateChanged -= Refresh;
-            _game.Logged -= OnLog;
             _game.RandomEventFired -= OnRandomEvent;
             _game.Homecoming -= OnHomecoming;
             _game.PhaseChanged -= OnPhaseChanged;
         }
 
         private void OnPhaseChanged(DriftPhase phase) => Refresh();
-
-        private void OnLog(string line)
-        {
-            _logLines.Add(line);
-            while (_logLines.Count > Mathf.Max(1, maxLogLines)) _logLines.RemoveAt(0);
-            if (logText != null) logText.text = string.Join("\n", _logLines);
-        }
 
         private void OnRandomEvent(RandomEventDef def) => ShowBanner($"【随机事件】{def.Name} — {def.Desc}");
 
@@ -158,25 +147,6 @@ namespace StarCard.UI
 
                 if (directionChips != null && i < directionChips.Length && directionChips[i] != null)
                     directionChips[i].color = home ? new Color(c.r, c.g, c.b, 0.55f) : new Color(c.r, c.g, c.b, 0.14f);
-            }
-
-            if (blessingText != null)
-            {
-                if (_game.Blessings.Count == 0)
-                {
-                    blessingText.text = "（尚无。点中小型粉色流星可获得）";
-                }
-                else
-                {
-                    var sb = new System.Text.StringBuilder();
-                    for (int i = 0; i < _game.Blessings.Count; i++)
-                    {
-                        var def = BlessingDatabase.Get(_game.Blessings[i]);
-                        sb.AppendLine($"- {def.Name}");
-                        sb.AppendLine($"  {def.Desc}");
-                    }
-                    blessingText.text = sb.ToString();
-                }
             }
 
             if (endTurnButton != null) endTurnButton.interactable = _game.Phase == DriftPhase.Board;

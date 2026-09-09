@@ -74,13 +74,19 @@ namespace StarCard.Drift
         // ---------- 事件（UI 订阅） ----------
         /// <summary>任何状态变化后触发，UI 全量刷新。</summary>
         public event Action StateChanged;
-        /// <summary>一行日志（右侧星语栏）。</summary>
+        /// <summary>
+        /// 一行日志。右侧星语栏已改成祝福面板，所以现在**默认没有 UI 订阅它**；
+        /// 事件保留是因为 Log() 在二十多处被调用、内容对排查很有用。
+        /// 勾上 logToConsole 就能在 Console 里看全过程。
+        /// </summary>
         public event Action<string> Logged;
         public event Action<DriftPhase> PhaseChanged;
         /// <summary>流星阶段结束、有收获需要取舍。</summary>
         public event Action RewardsReady;
         public event Action<Direction> Homecoming;
         public event Action<RandomEventDef> RandomEventFired;
+        /// <summary>抽到了但被方位祝福屏蔽掉的事件。</summary>
+        public event Action<RandomEventDef, Direction> RandomEventBlocked;
         public event Action GameOverEvent;
         /// <summary>棋盘发生位移（漂移 / 事件），UI 用动画跟随。</summary>
         public event Action BoardShuffled;
@@ -88,7 +94,6 @@ namespace StarCard.Drift
         // ---------- 派生数值 ----------
         public int ActionsPerTurn =>
             config.baseActionsPerTurn
-            + (_homecomed.Contains(Direction.East) ? 2 : 0)
             + (HasBlessing(BlessingId.YaoGuangStride) ? 1 : 0);
 
         public int MinLink =>
@@ -103,7 +108,6 @@ namespace StarCard.Drift
 
         public float ComputeMeteorDuration() =>
             config.meteorPhaseDuration
-            + (_homecomed.Contains(Direction.West) ? 5f : 0f)
             + (HasBlessing(BlessingId.YaoGuangGaze) ? 4f : 0f);
 
         public bool HasBlessing(BlessingId id) => _blessings.Contains(id);
@@ -267,7 +271,6 @@ namespace StarCard.Drift
             _freeMoveUsedThisTurn = false;
 
             if (HasBlessing(BlessingId.YuHengGather)) DrawToHand("玉衡-聚灵");
-            if (_homecomed.Contains(Direction.South)) DrawToHand("朱雀-衔火");
 
             SetPhase(DriftPhase.Board);
             Log($"棋盘操作开始：行动次数 {ActionsLeft}，每 {EventInterval} 次行动生变。");
@@ -461,8 +464,6 @@ namespace StarCard.Drift
             if (HasBlessing(BlessingId.TianJiWeave))
                 drifters.RemoveAll(_ => _rng.Next(2) == 0);
 
-            // 玄武·镇渊：随机半数不动
-            if (_homecomed.Contains(Direction.North) && drifters.Count > 1)
             {
                 Shuffle(drifters);
                 int keep = drifters.Count / 2;
@@ -502,6 +503,17 @@ namespace StarCard.Drift
         private void TriggerRandomEvent()
         {
             var def = RandomEventDatabase.Roll(_rng);
+
+            // 方位祝福会屏蔽一类事件：抽到就空过，不重抽
+            // （重抽会让"被屏蔽的事件"变成"其他事件概率上升"，那是另一种设计）
+            var blocker = FindBlocker(def.Id);
+            if (blocker.HasValue)
+            {
+                Log($"【随机事件】{def.Name} —— 被「{DirectionBlessing.GetName(blocker.Value)}」镇住，未发生。");
+                RandomEventBlocked?.Invoke(def, blocker.Value);
+                return;
+            }
+
             string detail = ApplyBoardEvent(def.Id);
 
             Log($"【随机事件】{def.Name} —— {def.Desc}" + (string.IsNullOrEmpty(detail) ? "" : $"（{detail}）"));
@@ -510,6 +522,17 @@ namespace StarCard.Drift
             RecomputeLinks();
             BoardShuffled?.Invoke();
         }
+
+        /// <summary>找出屏蔽这个事件的已归位方位；没有则返回 null。</summary>
+        private Direction? FindBlocker(RandomEventId id)
+        {
+            foreach (var dir in _homecomed)
+                if (DirectionBlessing.Blocks(dir, id)) return dir;
+            return null;
+        }
+
+        /// <summary>某个随机事件当前是否会被屏蔽（UI 提示用）。</summary>
+        public bool IsEventBlocked(RandomEventId id) => FindBlocker(id).HasValue;
 
         /// <summary>执行一个事件的棋盘变换。返回补充说明（如旋转选中的九宫格），没有则空串。</summary>
         private string ApplyBoardEvent(RandomEventId id)
@@ -636,7 +659,11 @@ namespace StarCard.Drift
             PhaseChanged?.Invoke(phase);
         }
 
-        private void Log(string line) => Logged?.Invoke(line);
+        private void Log(string line)
+        {
+            if (config.logToConsole) Debug.Log("[漂泊的星宿] " + line);
+            Logged?.Invoke(line);
+        }
         private void Notify() => StateChanged?.Invoke();
     }
 }
