@@ -449,102 +449,47 @@ namespace StarCard.Drift
         }
 
         // ---------- 随机事件 ----------
+        //
+        // 全部是棋盘整体变换，等概率。**作用于所有牌，包括已连结的** ——
+        // 变换后统一 RecomputeLinks()，所以可能凭空多出连结甚至归位，
+        // 也可能让原有连结失效（高亮跟着消失）。
         private void TriggerRandomEvent()
         {
             var def = RandomEventDatabase.Roll(_rng);
-            Log($"【随机事件】{def.Name} —— {def.Desc}");
+            string detail = ApplyBoardEvent(def.Id);
+
+            Log($"【随机事件】{def.Name} —— {def.Desc}" + (string.IsNullOrEmpty(detail) ? "" : $"（{detail}）"));
             RandomEventFired?.Invoke(def);
 
-            switch (def.Id)
-            {
-                case RandomEventId.StardustSquall:
-                    ApplyDrift("星尘骤起");
-                    break;
-
-                case RandomEventId.MeteorImpact:
-                {
-                    var target = PickRandomUnlinked();
-                    if (target.IsValid && Board.Remove(target, out var card))
-                    {
-                        _pool.Add(card);
-                        Log($"{Describe(card)} 被击回卡池。");
-                        BoardShuffled?.Invoke();
-                    }
-                    break;
-                }
-
-                case RandomEventId.OrbitPull:
-                {
-                    var target = PickRandomUnlinked();
-                    if (!target.IsValid) break;
-                    var card = Board.GetCard(target);
-                    var dest = FindLinkingSlot(card.Direction, target);
-                    if (!dest.IsValid)
-                    {
-                        var free = Board.FreeSlots();
-                        if (free.Count == 0) break;
-                        dest = free[_rng.Next(free.Count)];
-                    }
-                    Board.Move(target, dest);
-                    Log($"{Describe(card)} 被星轨牵引至 {dest}。");
-                    BoardShuffled?.Invoke();
-                    break;
-                }
-
-                case RandomEventId.Gift:
-                    DrawToHand("天赐流光");
-                    break;
-
-                case RandomEventId.VoidBite:
-                {
-                    var free = Board.FreeSlots();
-                    if (free.Count == 0) break;
-                    var p = free[_rng.Next(free.Count)];
-                    Board.Block(p, 2);
-                    Log($"{p} 被虚空吞噬，2 回合内不可落牌。");
-                    break;
-                }
-
-                case RandomEventId.SkyReverse:
-                    ActionsLeft += 2;
-                    Log("行动次数 +2。");
-                    break;
-
-                case RandomEventId.StarTide:
-                    ApplyTide();
-                    break;
-            }
-
             RecomputeLinks();
+            BoardShuffled?.Invoke();
         }
 
-        private void ApplyTide()
+        /// <summary>执行一个事件的棋盘变换。返回补充说明（如旋转选中的九宫格），没有则空串。</summary>
+        private string ApplyBoardEvent(RandomEventId id)
         {
-            int[] dr = { -1, 1, 0, 0 };
-            int[] dc = { 0, 0, -1, 1 };
-            string[] names = { "上", "下", "左", "右" };
-            int d = _rng.Next(4);
-
-            var cards = new List<GridPos>();
-            foreach (var kv in Board.AllCards())
-                if (!Links.IsLinked(kv.Key)) cards.Add(kv.Key);
-
-            // 顺着潮水方向从最前面的牌开始挪，才不会互相挡路
-            cards.Sort((a, b) =>
+            switch (id)
             {
-                int pa = a.Row * dr[d] + a.Col * dc[d];
-                int pb = b.Row * dr[d] + b.Col * dc[d];
-                return pb.CompareTo(pa);
-            });
+                case RandomEventId.ShiftLeft:  Board.ShiftLeft();  return null;
+                case RandomEventId.ShiftRight: Board.ShiftRight(); return null;
+                case RandomEventId.ShiftUp:    Board.ShiftUp();    return null;
+                case RandomEventId.ShiftDown:  Board.ShiftDown();  return null;
 
-            int moved = 0;
-            foreach (var p in cards)
-            {
-                var to = p.Offset(dr[d], dc[d]);
-                if (Board.IsFree(to) && Board.Move(p, to)) moved++;
+                case RandomEventId.MirrorVertical:   Board.MirrorVertical();   return null;
+                case RandomEventId.MirrorHorizontal: Board.MirrorHorizontal(); return null;
+
+                case RandomEventId.RotateClockwise:
+                case RandomEventId.RotateCounter:
+                {
+                    var origins = Board.BlockOrigins();
+                    if (origins.Count == 0) return "棋盘放不下九宫格，无事发生";
+                    var o = origins[_rng.Next(origins.Count)];
+                    bool cw = id == RandomEventId.RotateClockwise;
+                    Board.RotateBlock(o.Row, o.Col, cw);
+                    return $"以 {o} 为左上角的九宫格";
+                }
             }
-            Log($"星潮向{names[d]}涌动，{moved} 张牌被推移。");
-            if (moved > 0) BoardShuffled?.Invoke();
+            return null;
         }
 
         // ---------- 连结 / 归位 ----------
@@ -624,39 +569,6 @@ namespace StarCard.Drift
             return candidates[_rng.Next(candidates.Count)];
         }
 
-        private GridPos PickRandomUnlinked()
-        {
-            var list = new List<GridPos>();
-            foreach (var kv in Board.AllCards())
-                if (!Links.IsLinked(kv.Key)) list.Add(kv.Key);
-            if (list.Count == 0) return GridPos.Invalid;
-            return list[_rng.Next(list.Count)];
-        }
-
-        /// <summary>找一个空位，把 dir 方位的这张牌挪过去后能构成连结。</summary>
-        private GridPos FindLinkingSlot(Direction dir, GridPos self)
-        {
-            var occupied = new HashSet<GridPos>(Board.PositionsOfDirection(dir));
-            occupied.Remove(self);
-
-            var placements = FormationDatabase.GetPlacements(dir, Board.Rows, Board.Cols, AllowRotation);
-            var good = new List<GridPos>();
-            foreach (var placement in placements)
-            {
-                int hit = 0;
-                for (int i = 0; i < placement.Length; i++)
-                    if (occupied.Contains(placement[i])) hit++;
-                if (hit + 1 < MinLink) continue;
-
-                for (int i = 0; i < placement.Length; i++)
-                {
-                    var cell = placement[i];
-                    if (cell != self && Board.IsFree(cell)) good.Add(cell);
-                }
-            }
-            if (good.Count == 0) return GridPos.Invalid;
-            return good[_rng.Next(good.Count)];
-        }
 
         private void Shuffle<T>(IList<T> list)
         {

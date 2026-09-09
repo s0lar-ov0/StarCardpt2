@@ -2,15 +2,21 @@ using System.Collections.Generic;
 
 namespace StarCard.Drift
 {
+    /// <summary>
+    /// 随机事件。全部是**棋盘整体变换**，等概率抽取。
+    /// 变换作用于棋盘上所有牌 —— **包括已连结的**；变换后重算连结，
+    /// 可能凭空多出连结（甚至归位），也可能让原有连结失效。
+    /// </summary>
     public enum RandomEventId
     {
-        StardustSquall,   // 星尘骤起：立刻额外漂移一次
-        MeteorImpact,     // 陨石撞击：一张非连结牌被打回卡池
-        OrbitPull,        // 星轨牵引：一张非连结牌被拉到能连结的位置
-        Gift,             // 天赐流光：卡池抽 1 张到手牌
-        VoidBite,         // 虚空吞噬：一个空位被封锁 2 回合
-        SkyReverse,       // 星象逆转：本回合行动次数 +2
-        StarTide          // 星潮涌动：所有非连结牌朝同一方向平移 1 格
+        ShiftLeft,          // 整体左平移，最左列绕到最右
+        ShiftRight,         // 整体右平移
+        ShiftUp,            // 整体上平移，最上行绕到最下
+        ShiftDown,          // 整体下平移
+        RotateClockwise,    // 随机一个九宫格，外圈顺时针转一格，中心不动
+        RotateCounter,      // 同上，逆时针
+        MirrorVertical,     // 上下对称：上两行与下两行互换
+        MirrorHorizontal    // 左右对称：正中列不动，其余左右镜像
     }
 
     public class RandomEventDef
@@ -18,14 +24,12 @@ namespace StarCard.Drift
         public RandomEventId Id;
         public string Name;
         public string Desc;
-        public int Weight;
 
-        public RandomEventDef(RandomEventId id, string name, string desc, int weight)
+        public RandomEventDef(RandomEventId id, string name, string desc)
         {
             Id = id;
             Name = name;
             Desc = desc;
-            Weight = weight;
         }
     }
 
@@ -33,13 +37,14 @@ namespace StarCard.Drift
     {
         private static readonly List<RandomEventDef> All = new()
         {
-            new RandomEventDef(RandomEventId.StardustSquall, "星尘骤起", "棋盘上所有非连结的星宿牌立刻漂移一次", 18),
-            new RandomEventDef(RandomEventId.MeteorImpact,   "陨石撞击", "随机一张非连结的星宿牌被击回卡池", 14),
-            new RandomEventDef(RandomEventId.OrbitPull,      "星轨牵引", "随机一张非连结牌被拉入能构成连结的空位", 14),
-            new RandomEventDef(RandomEventId.Gift,           "天赐流光", "从卡池随机抽 1 张星宿牌到手牌", 16),
-            new RandomEventDef(RandomEventId.VoidBite,       "虚空吞噬", "随机 1 个空位被封锁 2 回合，期间不可落牌", 12),
-            new RandomEventDef(RandomEventId.SkyReverse,     "星象逆转", "本回合剩余行动次数 +2", 14),
-            new RandomEventDef(RandomEventId.StarTide,       "星潮涌动", "所有非连结牌朝同一随机方向平移 1 格", 12)
+            new RandomEventDef(RandomEventId.ShiftLeft,  "星河西流", "棋盘整体左移一列，最左一列绕回最右"),
+            new RandomEventDef(RandomEventId.ShiftRight, "星河东流", "棋盘整体右移一列，最右一列绕回最左"),
+            new RandomEventDef(RandomEventId.ShiftUp,    "天穹上引", "棋盘整体上移一行，最上一行绕回最下"),
+            new RandomEventDef(RandomEventId.ShiftDown,  "天穹下沉", "棋盘整体下移一行，最下一行绕回最上"),
+            new RandomEventDef(RandomEventId.RotateClockwise, "斗柄顺旋", "随机一处九宫格，外围八格顺时针转一格，中心不动"),
+            new RandomEventDef(RandomEventId.RotateCounter,   "斗柄逆旋", "随机一处九宫格，外围八格逆时针转一格，中心不动"),
+            new RandomEventDef(RandomEventId.MirrorVertical,  "天地翻覆", "上下对称：上两行与下两行整体互换"),
+            new RandomEventDef(RandomEventId.MirrorHorizontal,"左右倒悬", "左右对称：正中一列不动，其余左右镜像")
         };
 
         public static IReadOnlyList<RandomEventDef> AllDefs => All;
@@ -50,17 +55,7 @@ namespace StarCard.Drift
             return null;
         }
 
-        public static RandomEventDef Roll(System.Random rng)
-        {
-            int total = 0;
-            for (int i = 0; i < All.Count; i++) total += All[i].Weight;
-            int roll = rng.Next(total);
-            for (int i = 0; i < All.Count; i++)
-            {
-                roll -= All[i].Weight;
-                if (roll < 0) return All[i];
-            }
-            return All[0];
-        }
+        /// <summary>等概率抽一个。</summary>
+        public static RandomEventDef Roll(System.Random rng) => All[rng.Next(All.Count)];
     }
 }
